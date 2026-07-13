@@ -2,7 +2,7 @@
 
 import { useState, ChangeEvent } from "react";
 import { Open_Sans } from "next/font/google";
-import Navbar from "../components/Navbar"; // นำเข้า Navbar ที่เราเพิ่งสร้าง
+import Navbar from "../components/Navbar";
 
 const openSans = Open_Sans({
   subsets: ["latin"],
@@ -231,15 +231,12 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
     <div
       className={`min-h-screen bg-[#130013] text-[#efbbff] ${openSans.className} pb-16`}
     >
-      {/* เพิ่ม Navbar ตรงนี้ */}
       <Navbar />
 
-      <div className="max-w-4xl mx-auto mt-8 bg-[#2a002a] rounded-none border-2 border-[#be29ec] shadow-2xl p-6">
+      <div className="max-w-5xl mx-auto mt-8 bg-[#2a002a] rounded-none border-2 border-[#be29ec] shadow-2xl p-6">
         <h1 className="text-2xl font-bold mb-6 text-[#efbbff] border-b-2 border-[#be29ec] pb-2 uppercase tracking-wide">
           2D Anime Prompt Generator (Powered by Groq)
         </h1>
-
-        {/* ... (ส่วนอื่นๆ ของฟอร์มเหมือนเดิมทั้งหมด) ... */}
 
         <div className="space-y-5 mb-6">
           <div className="flex flex-col">
@@ -349,66 +346,127 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
           </div>
         </div>
 
+        {/* ⚙️ อัปเกรด Settings Guide Section ⚙️ */}
         <div className="pt-6 border-t-2 border-[#800080]">
           <h2 className="text-lg font-bold text-[#d896ff] mb-4 uppercase tracking-wider flex items-center gap-2">
             ⚙️ Generation Settings Guide (SDXL/Pony)
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="bg-[#1a001a] border border-[#be29ec] p-4">
+          {/* เปลี่ยนจาก 3 คอลัมน์เป็น 4 คอลัมน์ */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+            {/* 1. Portrait Settings */}
+            <div className="bg-[#1a001a] border border-[#be29ec] p-4 flex flex-col">
               <h3 className="font-bold text-[#efbbff] mb-3 uppercase border-b border-[#800080] pb-2 flex justify-between">
                 <span>📱 Portrait</span>
                 <span className="text-[#800080]">แนวตั้ง</span>
               </h3>
-              <ul className="text-[#d896ff] space-y-2 font-mono">
-                <li className="flex justify-between">
-                  <span>Width:</span> <span className="text-white">896</span>
+              <ul className="text-[#d896ff] space-y-3 font-mono flex-1 text-xs sm:text-sm">
+                <li className="flex justify-between items-center">
+                  <span>Width:</span>{" "}
+                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                    896
+                  </span>
                 </li>
-                <li className="flex justify-between">
-                  <span>Height:</span> <span className="text-white">1152</span>
+                <li className="flex justify-between items-center">
+                  <span>Height:</span>{" "}
+                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                    1152
+                  </span>
                 </li>
-                <li className="flex justify-between text-xs text-[#800080] mt-2 pt-2 border-t border-[#800080]">
+                <li className="flex justify-between text-xs text-[#800080] mt-4 pt-3 border-t border-[#800080]">
                   Alt: 832 x 1216
                 </li>
               </ul>
             </div>
 
-            <div className="bg-[#1a001a] border border-[#be29ec] p-4">
+            {/* 2. Landscape Settings */}
+            <div className="bg-[#1a001a] border border-[#be29ec] p-4 flex flex-col">
               <h3 className="font-bold text-[#efbbff] mb-3 uppercase border-b border-[#800080] pb-2 flex justify-between">
                 <span>🖥️ Landscape</span>
                 <span className="text-[#800080]">แนวนอน</span>
               </h3>
-              <ul className="text-[#d896ff] space-y-2 font-mono">
-                <li className="flex justify-between">
-                  <span>Width:</span> <span className="text-white">1152</span>
+              <ul className="text-[#d896ff] space-y-3 font-mono flex-1 text-xs sm:text-sm">
+                <li className="flex justify-between items-center">
+                  <span>Width:</span>{" "}
+                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                    1152
+                  </span>
                 </li>
-                <li className="flex justify-between">
-                  <span>Height:</span> <span className="text-white">896</span>
+                <li className="flex justify-between items-center">
+                  <span>Height:</span>{" "}
+                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                    896
+                  </span>
                 </li>
-                <li className="flex justify-between text-xs text-[#800080] mt-2 pt-2 border-t border-[#800080]">
+                <li className="flex justify-between text-xs text-[#800080] mt-4 pt-3 border-t border-[#800080]">
                   Alt: 1216 x 832
                 </li>
               </ul>
             </div>
 
-            <div className="bg-[#1a001a] border border-[#be29ec] p-4">
+            {/* 3. General Settings */}
+            <div className="bg-[#1a001a] border border-[#be29ec] p-4 flex flex-col">
               <h3 className="font-bold text-[#efbbff] mb-3 uppercase border-b border-[#800080] pb-2 flex justify-between">
                 <span>🔧 General</span>
                 <span className="text-[#800080]">ทั่วไป</span>
               </h3>
-              <ul className="text-[#d896ff] space-y-2 font-mono">
-                <li className="flex flex-col">
-                  <span className="mb-1">Sampler:</span>
-                  <span className="text-white text-xs bg-[#130013] p-1 border border-[#800080] text-center">
+              <ul className="text-[#d896ff] space-y-3 font-mono text-[11px] sm:text-xs flex-1">
+                <li className="flex flex-col gap-1">
+                  <span>Sampler:</span>
+                  <span className="text-white bg-[#130013] p-1.5 border border-[#800080] text-center w-full">
                     DPM++ 2M SDE Karras
                   </span>
                 </li>
-                <li className="flex justify-between">
+                <li className="flex justify-between items-center">
                   <span>Steps:</span>{" "}
-                  <span className="text-white">20 - 30</span>
+                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                    25 - 30
+                  </span>
                 </li>
-                <li className="flex justify-between">
+                <li className="flex justify-between items-center">
                   <span>CFG Scale:</span>{" "}
-                  <span className="text-white">5 - 7</span>
+                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                    5 - 7
+                  </span>
+                </li>
+                <li className="flex justify-between items-center">
+                  <span>Clip Skip:</span>{" "}
+                  <span className="text-[#00ff00] bg-[#130013] px-2 py-1 border border-[#800080]">
+                    2
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            {/* 4. Hires Fix Settings */}
+            <div className="bg-[#1a001a] border border-[#be29ec] p-4 flex flex-col">
+              <h3 className="font-bold text-[#efbbff] mb-3 uppercase border-b border-[#800080] pb-2 flex justify-between">
+                <span>✨ Hires. Fix</span>
+                <span className="text-[#800080]">อัปสเกล</span>
+              </h3>
+              <ul className="text-[#d896ff] space-y-3 font-mono text-[11px] sm:text-xs flex-1">
+                <li className="flex flex-col gap-1">
+                  <span>Upscaler:</span>
+                  <span className="text-white bg-[#130013] p-1.5 border border-[#800080] text-center w-full whitespace-nowrap overflow-hidden text-ellipsis">
+                    R-ESRGAN 4x+ Anime6B
+                  </span>
+                </li>
+                <li className="flex justify-between items-center">
+                  <span>Hires steps:</span>{" "}
+                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                    10 - 15
+                  </span>
+                </li>
+                <li className="flex justify-between items-center">
+                  <span>Denoising:</span>{" "}
+                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                    0.25 - 0.35
+                  </span>
+                </li>
+                <li className="flex justify-between items-center">
+                  <span>Upscale by:</span>{" "}
+                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                    1.5x
+                  </span>
                 </li>
               </ul>
             </div>
