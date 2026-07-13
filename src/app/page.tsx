@@ -17,13 +17,13 @@ type Option = {
 };
 
 export default function PromptGenerator() {
-  // เพิ่ม State สำหรับ NSFW Mode, จำนวนคน, และ ท่าทาง
   const [isNsfw, setIsNsfw] = useState(false);
   const [selections, setSelections] = useState({
     character: "",
     outfit: "",
     background: "",
     peopleCount: "1girl, solo",
+    posePreset: "", // เพิ่ม State สำหรับเก็บค่า Dropdown ท่าทาง
     action: "",
   });
 
@@ -76,6 +76,66 @@ export default function PromptGenerator() {
     },
   ];
 
+  // ชุดคำสั่ง Dropdown ท่าทาง
+  const poseOptions = [
+    { value: "", label: "-- เลือกท่าทาง (Select Pose) --" },
+    {
+      value: "standing, looking at viewer, arms at sides",
+      label: "🧍‍♀️ Standing Neutral / Idle Pose",
+    },
+    {
+      value: "hands on hips, confident, confident smile",
+      label: "😎 Confident / Hands on Hips",
+    },
+    { value: "arms crossed, looking at viewer", label: "😤 Arms Crossed" },
+    {
+      value: "dynamic action pose, combat ready, holding weapon",
+      label: "⚔️ Dynamic Action Pose (Combat Ready)",
+    },
+    {
+      value: "peace sign, victory pose, smiling, happy",
+      label: "✌️ Victory / Peace Sign",
+    },
+    { value: "sitting, casual pose", label: "🪑 Sitting Pose (Casual)" },
+    {
+      value: "jumping, mid-air, dynamic pose",
+      label: "🚀 Jumping / Mid-Air Dynamic",
+    },
+    {
+      value: "close-up, looking back, looking over shoulder",
+      label: "📸 Close-up Portrait / Looking Back",
+    },
+    {
+      value: "reclining, lying pose, hand supporting head",
+      label: "🛏️ Reclining / Lying Pose",
+    },
+    {
+      value: "running, sprint pose, dynamic action",
+      label: "🏃‍♀️ Running / Sprint Pose",
+    },
+    {
+      value: "shy, embarrassed, hand on cheek, blushing, slightly looking down",
+      label: "😳 Shy / Embarrassed Pose",
+    },
+    {
+      value: "magic casting, power up pose, glowing aura",
+      label: "✨ Magic Casting / Power Up Pose",
+    },
+    {
+      value: "thinking, hand on chin, looking up",
+      label: "🤔 Thinking / Chin Rest Pose",
+    },
+    {
+      value: "from behind, back view, looking over shoulder",
+      label: "🔙 Back View / Over Shoulder",
+    },
+    {
+      value: "crouching, alert pose, hand on ground",
+      label: "🥷 Crouching / Alert Pose",
+    },
+    { value: "custom", label: "✍️ พิมพ์ท่าทางเอง (Custom)" },
+  ];
+
   const baseNegative = `score_6, score_5, score_4, worst quality, low quality, normal quality, 
 (bad anatomy, worst anatomy, deformed, distorted, disfigured:1.2), 
 (extra limbs, missing limbs, extra digits, mutated hands, fused fingers:1.2), 
@@ -83,9 +143,9 @@ poorly drawn face, bad proportions, bad perspective,
 multiple girls, multiple boys, group, crowd, 2girls, 3girls, clones, extra characters, background characters, 
 text, watermark, logo, username, signature, 
 lowres, jpeg artifacts, compression artifacts, 
-oversaturated, underexposed, source_pony, source_furry, source_cartoon`;
+oversaturated, underexposed, source_pony, source_furry, source_cartoon,
+default outfit, original outfit`; // 🚀 เพิ่ม 2 คำนี้เพื่อแบนชุดดั้งเดิมของตัวละคร
 
-  // ชุดสี Theme แบบ Dynamic
   const theme = isNsfw
     ? {
         bgApp: "bg-[#0a0002]",
@@ -143,6 +203,13 @@ oversaturated, underexposed, source_pony, source_furry, source_cartoon`;
         .replace(/1girl, /g, "");
     }
 
+    // ตัวแปรเช็คว่าควรใช้ Action จาก Dropdown หรือจาก Text Area
+    const actualAction = isNsfw
+      ? selections.action
+      : selections.posePreset === "custom"
+        ? selections.action
+        : selections.posePreset;
+
     let expandedOutfit = "detailed clothes";
     let expandedBg = "simple background";
     let generatedPoses = "dynamic pose, looking at viewer";
@@ -150,7 +217,7 @@ oversaturated, underexposed, source_pony, source_furry, source_cartoon`;
 
     let isApiSuccess = false;
 
-    if (selections.outfit || selections.background || selections.action) {
+    if (selections.outfit || selections.background || actualAction) {
       try {
         const res = await fetch(
           "https://api.groq.com/openai/v1/chat/completions",
@@ -161,7 +228,6 @@ oversaturated, underexposed, source_pony, source_furry, source_cartoon`;
               Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-              // 🚀 อัปเกรด 1: เปลี่ยนมาใช้โมเดลตัวท็อปสุด (70B)
               model: "llama-3.3-70b-versatile",
               response_format: { type: "json_object" },
               messages: [
@@ -172,25 +238,25 @@ TRANSLATE ALL INPUTS TO ENGLISH ACCURATELY. DO NOT OUTPUT ANY THAI CHARACTERS.
 
 CRITICAL RULE 1: Keep exact clothing items the user asks for. Do not change pants to skirts, etc.
 CRITICAL RULE 2: ALL output values MUST be a single flat string of comma-separated tags. DO NOT write sentences, paragraphs, arrays, or nested objects. Use standard Danbooru tags format.
+CRITICAL RULE 3 (NO CONFLICTING POSES): DO NOT generate conflicting poses. Pick EXACTLY ONE cohesive main pose based on user input, and enhance it with 2-3 supporting tags like camera angles or hand gestures.
 
 ${
   isNsfw
-    ? "CRITICAL RULE 3 (NSFW MODE): The user requests highly explicit, suggestive, and uncensored content. You MUST use precise NSFW Danbooru tags for anatomy, clothing states (e.g., torn clothes, undressing, half-closed eyes), and intimate interactions based on the Action input. Do not hold back. Act as a dedicated NSFW prompt creator."
-    : "CRITICAL RULE 3 (SFW MODE): Focus heavily on aesthetic, beautiful details, cinematic lighting, and highly detailed clothing/background tags."
+    ? "CRITICAL RULE 4 (NSFW MODE): The user requests highly explicit, suggestive, and uncensored content. You MUST use precise NSFW Danbooru tags for anatomy, clothing states (e.g., torn clothes, undressing, half-closed eyes), and intimate interactions based on the Action input. Do not hold back. Act as a dedicated NSFW prompt creator."
+    : "CRITICAL RULE 4 (SFW MODE): Focus heavily on aesthetic, beautiful details, cinematic lighting, and highly detailed clothing/background tags."
 }
 
 - For outfit: strictly use the user's garments, describe layers, materials (e.g., latex, silk), and accessories.
-- For poses & mood: generate 5-8 related poses/actions/camera angles as comma-separated tags based on the user's action description. 
+- For poses & mood: Translate user's action into one cohesive Danbooru pose. Enhance with non-conflicting camera angles.
 - For background: describe lighting, atmosphere, and specific surrounding objects.
 
-Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "mood", "background". Example: {"outfit": "white shirt, black pants", "poses": "sitting, legs spread", "mood": "confident", "background": "bedroom, dim lighting"}`,
+Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "mood", "background". Example: {"outfit": "white shirt, black pants", "poses": "sitting, legs crossed, looking at viewer, from below", "mood": "confident, smirk", "background": "bedroom, dim lighting"}`,
                 },
                 {
                   role: "user",
-                  content: `Outfit: ${selections.outfit || "none"}\nBackground: ${selections.background || "none"}${isNsfw ? `\nAction/Pose: ${selections.action || "none"}` : ""}`,
+                  content: `Outfit: ${selections.outfit || "none"}\nBackground: ${selections.background || "none"}\nAction/Pose: ${actualAction || "none"}`,
                 },
               ],
-              // 🚀 อัปเกรด 3: ปรับ Temperature เป็น 0.7 เพื่อให้ AI มีความสร้างสรรค์ในการหา Tags แปลกๆ ใหม่ๆ มาใส่ให้
               temperature: 0.7,
             }),
           },
@@ -199,7 +265,6 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
           const data = await res.json();
           const parsed = JSON.parse(data.choices[0].message.content);
 
-          // ฟังก์ชันดักจับ: ถ้า AI ส่ง Object หรือ Array มา ให้แปลงเป็น String ขั้นด้วยลูกน้ำให้หมด
           const extractStr = (val: unknown): string => {
             if (val == null) return "";
             if (val === "none") return "";
@@ -237,8 +302,8 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
         expandedOutfit = selections.outfit;
       if (selections.background && !containsThai(selections.background))
         expandedBg = selections.background;
-      if (isNsfw && selections.action && !containsThai(selections.action))
-        generatedPoses = selections.action;
+      if (actualAction && !containsThai(actualAction))
+        generatedPoses = actualAction;
     }
 
     const positiveBlocks = [];
@@ -252,7 +317,12 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
     if (charTags) baseCharBlock += `\n${charTags},`;
 
     positiveBlocks.push(baseCharBlock);
-    if (expandedOutfit) positiveBlocks.push(`${expandedOutfit},`);
+
+    // 🚀 อัปเกรด: เพิ่ม alternate costume และเร่งน้ำหนักชุด (1.2) เพื่อบังคับ AI เปลี่ยนชุด
+    if (expandedOutfit) {
+      positiveBlocks.push(`alternate costume,\n(${expandedOutfit}:1.2),`);
+    }
+
     positiveBlocks.push(`${generatedPoses},\n${generatedMood},`);
     if (expandedBg) positiveBlocks.push(`${expandedBg},`);
     positiveBlocks.push(
@@ -309,7 +379,6 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
       <div
         className={`max-w-5xl mx-auto mt-8 ${theme.bgCard} rounded-none border-2 ${theme.borderMain} ${theme.glow} p-6 transition-all duration-500`}
       >
-        {/* Header & Toggle */}
         <div
           className={`flex justify-between items-center mb-6 border-b-2 ${theme.borderMain} pb-4`}
         >
@@ -336,7 +405,6 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
           </button>
         </div>
 
-        {/* Inputs Section */}
         <div className="space-y-5 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="flex flex-col">
@@ -360,7 +428,6 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
               </select>
             </div>
 
-            {/* ช่องเลือกจำนวนคน (แสดงเฉพาะตอนเปิด NSFW Mode) */}
             {isNsfw && (
               <div className="flex flex-col animate-fade-in-down">
                 <label
@@ -406,25 +473,44 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
             />
           </div>
 
-          {/* ช่องใส่ท่าทาง (แสดงเฉพาะตอนเปิด NSFW Mode) */}
-          {isNsfw && (
-            <div className="flex flex-col animate-fade-in-down">
-              <label
-                className={`mb-2 text-sm font-semibold ${theme.textMuted} uppercase tracking-wider flex items-center gap-2`}
+          {/* ส่วน Actions / Poses ที่ปรับปรุงใหม่ */}
+          <div className="flex flex-col animate-fade-in-down">
+            <label
+              className={`mb-2 text-sm font-semibold ${theme.textMuted} uppercase tracking-wider flex items-center gap-2`}
+            >
+              Actions / Poses
+            </label>
+
+            {!isNsfw && (
+              <select
+                name="posePreset"
+                value={selections.posePreset}
+                onChange={handleInputChange}
+                className={`p-3 rounded-none ${theme.bgInput} border-2 ${theme.borderMain} ${theme.textMain} focus:outline-none focus:border-[white] cursor-pointer appearance-none transition-colors duration-500 ${selections.posePreset === "custom" ? "mb-3" : ""}`}
               >
-                Actions / Poses{" "}
-                <span className="text-xs text-[#ff003c]">(NSFW Feature)</span>
-              </label>
+                {poseOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {(isNsfw || selections.posePreset === "custom") && (
               <textarea
                 name="action"
                 value={selections.action}
                 onChange={handleInputChange}
-                placeholder="เช่น ท่านั่งคร่อมบนเก้าอี้, มุมกล้องจากด้านล่าง, กำลังถอดเสื้อ..."
+                placeholder={
+                  isNsfw
+                    ? "NSFW Mode: พิมพ์ท่าทางแบบจัดเต็มได้เลย เช่น ท่าคร่อมเก้าอี้..."
+                    : "พิมพ์ท่าทางที่ต้องการเพิ่มเติม..."
+                }
                 rows={2}
-                className={`p-3 rounded-none ${theme.bgInput} border-2 ${theme.borderMain} ${theme.textMain} focus:outline-none focus:border-[white] placeholder-${theme.borderDim.replace("border-", "")} resize-y transition-colors duration-500`}
+                className={`p-3 rounded-none ${theme.bgInput} border-2 ${theme.borderMain} ${theme.textMain} focus:outline-none focus:border-[white] placeholder-${theme.borderDim.replace("border-", "")} resize-y transition-colors duration-500 animate-fade-in-down`}
               />
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="flex flex-col">
             <label
@@ -449,16 +535,17 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
             (!selections.character &&
               !selections.outfit &&
               !selections.background &&
-              !selections.action) ||
+              !selections.action &&
+              !selections.posePreset) ||
             isGenerating ||
             isSuccess
           }
           className={`w-full font-bold py-3 px-4 rounded-none border-2 transition-all duration-300 uppercase tracking-widest flex justify-center items-center mb-8 disabled:opacity-90 disabled:cursor-not-allowed ${
             isSuccess
-              ? "bg-[#00ff00] text-[#130013] border-[#00ff00] shadow-[0_0_20px_#00ff00]" // สีปุ่มตอนเสร็จ (เขียวเรืองแสง)
+              ? "bg-[#00ff00] text-[#130013] border-[#00ff00] shadow-[0_0_20px_#00ff00]"
               : isGenerating
-                ? `${theme.bgInput} ${theme.textMain} border-dashed ${theme.borderDim}` // สีปุ่มตอนกำลังโหลด
-                : `${theme.accent} ${theme.accentHover} ${theme.textDark} border-transparent hover:${theme.borderMain}` // สีปุ่มปกติ
+                ? `${theme.bgInput} ${theme.textMain} border-dashed ${theme.borderDim}`
+                : `${theme.accent} ${theme.accentHover} ${theme.textDark} border-transparent hover:${theme.borderMain}`
           }`}
         >
           {isSuccess ? (
@@ -474,7 +561,6 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
           )}
         </button>
 
-        {/* Output Section */}
         <div className="space-y-6 mb-12">
           <div className="relative">
             <div className="flex justify-between items-end mb-2">
@@ -521,7 +607,6 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
           </div>
         </div>
 
-        {/* Settings Guide Section */}
         <div
           className={`pt-6 border-t-2 ${theme.borderDim} transition-colors duration-500`}
         >
@@ -636,7 +721,7 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
                   <span
                     className={`text-white ${theme.bgCard} px-2 py-1 border ${theme.borderDim}`}
                   >
-                    5 - 7
+                    7
                   </span>
                 </li>
                 <li className="flex justify-between items-center">
@@ -683,7 +768,7 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
                   <span
                     className={`text-white ${theme.bgCard} px-2 py-1 border ${theme.borderDim}`}
                   >
-                    0.25 - 0.35
+                    0.40 - 0.55
                   </span>
                 </li>
                 <li className="flex justify-between items-center">
