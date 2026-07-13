@@ -17,10 +17,14 @@ type Option = {
 };
 
 export default function PromptGenerator() {
+  // เพิ่ม State สำหรับ NSFW Mode, จำนวนคน, และ ท่าทาง
+  const [isNsfw, setIsNsfw] = useState(false);
   const [selections, setSelections] = useState({
     character: "",
     outfit: "",
     background: "",
+    peopleCount: "1girl, solo",
+    action: "",
   });
 
   const [prompts, setPrompts] = useState({
@@ -80,6 +84,35 @@ text, watermark, logo, username, signature,
 lowres, jpeg artifacts, compression artifacts, 
 oversaturated, underexposed, source_pony, source_furry, source_cartoon`;
 
+  // ชุดสี Theme แบบ Dynamic
+  const theme = isNsfw
+    ? {
+        bgApp: "bg-[#0a0002]",
+        bgCard: "bg-[#29000b]",
+        borderMain: "border-[#ff003c]",
+        borderDim: "border-[#80001e]",
+        textMain: "text-[#ffb3c6]",
+        textMuted: "text-[#ff4d6d]",
+        bgInput: "bg-[#140005]",
+        accent: "bg-[#ff003c]",
+        accentHover: "hover:bg-[#ff4d6d]",
+        textDark: "text-[#0a0002]",
+        glow: "shadow-[0_0_20px_rgba(255,0,60,0.4)]",
+      }
+    : {
+        bgApp: "bg-[#130013]",
+        bgCard: "bg-[#2a002a]",
+        borderMain: "border-[#be29ec]",
+        borderDim: "border-[#800080]",
+        textMain: "text-[#efbbff]",
+        textMuted: "text-[#d896ff]",
+        bgInput: "bg-[#1a001a]",
+        accent: "bg-[#be29ec]",
+        accentHover: "hover:bg-[#d896ff]",
+        textDark: "text-[#130013]",
+        glow: "shadow-2xl",
+      };
+
   const handleInputChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
@@ -90,9 +123,7 @@ oversaturated, underexposed, source_pony, source_furry, source_cartoon`;
   const generatePrompt = async () => {
     const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
     if (!apiKey) {
-      alert(
-        "⚠️ ไม่พบ API Key!\nกรุณาตรวจสอบไฟล์ .env.local ว่ามี NEXT_PUBLIC_GROQ_API_KEY หรือไม่",
-      );
+      alert("⚠️ ไม่พบ API Key!");
       return;
     }
 
@@ -102,7 +133,15 @@ oversaturated, underexposed, source_pony, source_furry, source_cartoon`;
       (c) => c.id === selections.character,
     );
     const loraTag = foundChar ? foundChar.lora : "";
-    const charTags = foundChar ? foundChar.tags : "";
+    let charTags = foundChar ? foundChar.tags : "";
+
+    // ปรับแต่งแท็กตัวละครถ้าเลือกมากกว่า 1 คน
+    if (isNsfw && selections.peopleCount !== "1girl, solo") {
+      charTags = charTags
+        .replace(/1girl, solo, /g, "")
+        .replace(/solo, /g, "")
+        .replace(/1girl, /g, "");
+    }
 
     let expandedOutfit = "detailed clothes";
     let expandedBg = "simple background";
@@ -111,7 +150,7 @@ oversaturated, underexposed, source_pony, source_furry, source_cartoon`;
 
     let isApiSuccess = false;
 
-    if (selections.outfit || selections.background) {
+    if (selections.outfit || selections.background || selections.action) {
       try {
         const res = await fetch(
           "https://api.groq.com/openai/v1/chat/completions",
@@ -129,28 +168,19 @@ oversaturated, underexposed, source_pony, source_furry, source_cartoon`;
                   role: "system",
                   content: `You are a Master Stable Diffusion Prompt Engineer. 
 TRANSLATE ALL INPUTS TO ENGLISH ACCURATELY. DO NOT OUTPUT ANY THAI CHARACTERS.
-CRITICAL RULE: You MUST strictly keep the exact clothing items the user asks for. If the user inputs "กางเกง" (pants, trousers, jeans), you MUST output pants/trousers, NEVER change it to a skirt. Do not alter the core garment types provided by the user.
-The user will give you a short description of an Outfit and/or Background.
-Your MUST deeply EXPAND these descriptions into highly detailed Danbooru-style tags in English.
-- For outfit: strictly use the user's garments, describe layers, materials, styles.
-- For poses & mood: generate 5-8 related poses/camera angles and 4-6 personality/mood tags based on the outfit style.
+CRITICAL RULE: Keep exact clothing items the user asks for.
+${isNsfw ? "WARNING: The user is in NSFW mode. You MUST generate highly explicit, detailed, and suggestive Danbooru-style tags if the user's action/pose input requires it. Do not hold back." : ""}
+- For outfit: strictly use the user's garments, describe layers, materials.
+- For poses & mood: generate 5-8 related poses/actions/camera angles based on the user's action description. 
 - For background: describe lighting, atmosphere, and specific surrounding objects.
 Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "mood", "background".`,
                 },
                 {
                   role: "user",
-                  content: `Outfit: ใส่ชุด office เสื้อเชิ้ตขาว กางเกง latex สีดำ\nBackground: office เเสงไปทางเเนวแบบ cyberpunk`,
-                },
-                {
-                  role: "assistant",
-                  content: `{"outfit": "white office dress shirt, collared white shirt, slightly unbuttoned, sleeves rolled up, black shiny latex pants, tight black latex pants, glossy latex, reflective surface", "poses": "dynamic pose, (standing, leaning on desk, sitting on desk, side view, three quarter view, from below, looking at viewer, looking away:1.1)", "mood": "(office lady, confident, seductive, professional, teasing, elegant, serious:1.15)", "background": "cyberpunk office, neon lights, holographic displays, rainy window background, futuristic office"}`,
-                },
-                {
-                  role: "user",
-                  content: `Outfit: ${selections.outfit || "none"}\nBackground: ${selections.background || "none"}`,
+                  content: `Outfit: ${selections.outfit || "none"}\nBackground: ${selections.background || "none"}${isNsfw ? `\nAction/Pose: ${selections.action || "none"}` : ""}`,
                 },
               ],
-              temperature: 0.4,
+              temperature: 0.6,
             }),
           },
         );
@@ -183,6 +213,8 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
         expandedOutfit = selections.outfit;
       if (selections.background && !containsThai(selections.background))
         expandedBg = selections.background;
+      if (isNsfw && selections.action && !containsThai(selections.action))
+        generatedPoses = selections.action;
     }
 
     const positiveBlocks = [];
@@ -190,24 +222,38 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
     if (loraTag) positiveBlocks.push(`${loraTag},`);
 
     let baseCharBlock = "score_9, score_8_up, score_7_up, source_anime,";
+    // ใส่แท็กจำนวนคนแบบอัตโนมัติ
+    if (isNsfw) {
+      baseCharBlock += `\n${selections.peopleCount},`;
+    }
     if (charTags) baseCharBlock += `\n${charTags},`;
+
     positiveBlocks.push(baseCharBlock);
-
     if (expandedOutfit) positiveBlocks.push(`${expandedOutfit},`);
-
     positiveBlocks.push(`${generatedPoses},\n${generatedMood},`);
-
     if (expandedBg) positiveBlocks.push(`${expandedBg},`);
-
     positiveBlocks.push(
       `(masterpiece, best quality, highly detailed, intricate details, sharp focus, cinematic lighting, dramatic lighting, soft lighting, volumetric light:1.1)`,
     );
 
     const finalPositive = positiveBlocks.join("\n\n");
 
+    // Dynamic Negative Prompt ป้องกันคำสั่งตีกัน
+    let finalNegative = baseNegative;
+    
+    if (isNsfw) {
+      // 1. ถ้าเลือกคนเยอะ ให้เอาคำสั่งห้ามคนงอกออก
+      if (selections.peopleCount !== "1girl, solo") {
+        finalNegative = finalNegative.replace("multiple girls, multiple boys, group, crowd, 2girls, 3girls, clones, extra characters, background characters, \n", "");
+      }
+      
+      // 2. เติม Negative Prompt เฉพาะกิจสำหรับ NSFW เพื่อกันภาพหลอนและติดเซ็นเซอร์
+      finalNegative += ",\ncensored, mosaic censoring, bar censor, (poorly drawn genitals, bad crotch:1.2), guro, amputation";
+    }
+
     setPrompts({
       positive: finalPositive,
-      negative: baseNegative,
+      negative: finalNegative,
     });
 
     setCopiedPositive(false);
@@ -229,37 +275,98 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
 
   return (
     <div
-      className={`min-h-screen bg-[#130013] text-[#efbbff] ${openSans.className} pb-16`}
+      className={`min-h-screen ${theme.bgApp} transition-colors duration-500 text-[#efbbff] ${openSans.className} pb-16`}
     >
-      <Navbar />
+      <Navbar isNsfw={isNsfw} />
 
-      <div className="max-w-5xl mx-auto mt-8 bg-[#2a002a] rounded-none border-2 border-[#be29ec] shadow-2xl p-6">
-        <h1 className="text-2xl font-bold mb-6 text-[#efbbff] border-b-2 border-[#be29ec] pb-2 uppercase tracking-wide">
-          2D Anime Prompt Generator (Powered by Groq)
-        </h1>
+      <div
+        className={`max-w-5xl mx-auto mt-8 ${theme.bgCard} rounded-none border-2 ${theme.borderMain} ${theme.glow} p-6 transition-all duration-500`}
+      >
+        {/* Header & Toggle */}
+        <div
+          className={`flex justify-between items-center mb-6 border-b-2 ${theme.borderMain} pb-4`}
+        >
+          <h1
+            className={`text-2xl font-bold ${theme.textMain} uppercase tracking-wide flex items-center`}
+          >
+            2D Anime Prompt Generator
+            {isNsfw && (
+              <span className="text-[#ff003c] ml-3 border border-[#ff003c] px-2 py-0.5 text-sm animate-pulse">
+                NSFW MODE 🔞
+              </span>
+            )}
+          </h1>
 
+          <button
+            onClick={() => setIsNsfw(!isNsfw)}
+            className={`px-4 py-2 font-bold uppercase tracking-widest border-2 transition-all duration-300 ${
+              isNsfw
+                ? "bg-[#ff003c] text-[#0a0002] border-[#ff003c] hover:bg-transparent hover:text-[#ff003c] shadow-[0_0_15px_#ff003c]"
+                : "bg-transparent text-[#be29ec] border-[#be29ec] hover:bg-[#be29ec] hover:text-[#130013]"
+            }`}
+          >
+            {isNsfw ? "Disable NSFW" : "Enable NSFW"}
+          </button>
+        </div>
+
+        {/* Inputs Section */}
         <div className="space-y-5 mb-6">
-          <div className="flex flex-col">
-            <label className="mb-2 text-sm font-semibold text-[#d896ff] uppercase tracking-wider">
-              Character (LoRA)
-            </label>
-            <select
-              name="character"
-              value={selections.character}
-              onChange={handleInputChange}
-              className="p-3 rounded-none bg-[#1a001a] border-2 border-[#be29ec] text-[#efbbff] focus:outline-none focus:border-[#d896ff] cursor-pointer appearance-none"
-            >
-              <option value="">-- Select Character --</option>
-              {characterOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="flex flex-col">
+              <label
+                className={`mb-2 text-sm font-semibold ${theme.textMuted} uppercase tracking-wider`}
+              >
+                Character (LoRA)
+              </label>
+              <select
+                name="character"
+                value={selections.character}
+                onChange={handleInputChange}
+                className={`p-3 rounded-none ${theme.bgInput} border-2 ${theme.borderMain} ${theme.textMain} focus:outline-none focus:border-[white] cursor-pointer appearance-none transition-colors duration-500`}
+              >
+                <option value="">-- Select Character --</option>
+                {characterOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* ช่องเลือกจำนวนคน (แสดงเฉพาะตอนเปิด NSFW Mode) */}
+            {isNsfw && (
+              <div className="flex flex-col animate-fade-in-down">
+                <label
+                  className={`mb-2 text-sm font-semibold ${theme.textMuted} uppercase tracking-wider flex items-center gap-2`}
+                >
+                  People Count{" "}
+                  <span className="text-xs text-[#ff003c]">(NSFW Feature)</span>
+                </label>
+                <select
+                  name="peopleCount"
+                  value={selections.peopleCount}
+                  onChange={handleInputChange}
+                  className={`p-3 rounded-none ${theme.bgInput} border-2 ${theme.borderMain} ${theme.textMain} focus:outline-none focus:border-[white] cursor-pointer appearance-none transition-colors duration-500`}
+                >
+                  <option value="1girl, solo">1 Girl (Solo)</option>
+                  <option value="2girls, yuri">2 Girls (Yuri)</option>
+                  <option value="3girls, group">3 Girls (Group)</option>
+                  <option value="1boy, 1girl">1 Boy, 1 Girl (Straight)</option>
+                  <option value="2boys, 1girl">
+                    2 Boys, 1 Girl (Threesome)
+                  </option>
+                  <option value="multiple girls, group">
+                    Multiple Girls / Harem
+                  </option>
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col">
-            <label className="mb-2 text-sm font-semibold text-[#d896ff] uppercase tracking-wider">
+            <label
+              className={`mb-2 text-sm font-semibold ${theme.textMuted} uppercase tracking-wider`}
+            >
               Outfit & Details (บอกสั้นๆ ให้ AI ช่วยขยายได้เลย)
             </label>
             <textarea
@@ -268,12 +375,34 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
               onChange={handleInputChange}
               placeholder="เช่น ใส่ชุด office เสื้อเชิ้ตขาว กางเกง latex สีดำ..."
               rows={2}
-              className="p-3 rounded-none bg-[#1a001a] border-2 border-[#be29ec] text-[#efbbff] focus:outline-none focus:border-[#d896ff] placeholder-[#800080] resize-y"
+              className={`p-3 rounded-none ${theme.bgInput} border-2 ${theme.borderMain} ${theme.textMain} focus:outline-none focus:border-[white] placeholder-${theme.borderDim.replace("border-", "")} resize-y transition-colors duration-500`}
             />
           </div>
 
+          {/* ช่องใส่ท่าทาง (แสดงเฉพาะตอนเปิด NSFW Mode) */}
+          {isNsfw && (
+            <div className="flex flex-col animate-fade-in-down">
+              <label
+                className={`mb-2 text-sm font-semibold ${theme.textMuted} uppercase tracking-wider flex items-center gap-2`}
+              >
+                Actions / Poses{" "}
+                <span className="text-xs text-[#ff003c]">(NSFW Feature)</span>
+              </label>
+              <textarea
+                name="action"
+                value={selections.action}
+                onChange={handleInputChange}
+                placeholder="เช่น ท่านั่งคร่อมบนเก้าอี้, มุมกล้องจากด้านล่าง, กำลังถอดเสื้อ..."
+                rows={2}
+                className={`p-3 rounded-none ${theme.bgInput} border-2 ${theme.borderMain} ${theme.textMain} focus:outline-none focus:border-[white] placeholder-${theme.borderDim.replace("border-", "")} resize-y transition-colors duration-500`}
+              />
+            </div>
+          )}
+
           <div className="flex flex-col">
-            <label className="mb-2 text-sm font-semibold text-[#d896ff] uppercase tracking-wider">
+            <label
+              className={`mb-2 text-sm font-semibold ${theme.textMuted} uppercase tracking-wider`}
+            >
               Background (บอกสั้นๆ ให้ AI ช่วยขยายได้เลย)
             </label>
             <textarea
@@ -282,7 +411,7 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
               onChange={handleInputChange}
               placeholder="เช่น office เเสงไปทางเเนวแบบ cyberpunk..."
               rows={2}
-              className="p-3 rounded-none bg-[#1a001a] border-2 border-[#be29ec] text-[#efbbff] focus:outline-none focus:border-[#d896ff] placeholder-[#800080] resize-y"
+              className={`p-3 rounded-none ${theme.bgInput} border-2 ${theme.borderMain} ${theme.textMain} focus:outline-none focus:border-[white] placeholder-${theme.borderDim.replace("border-", "")} resize-y transition-colors duration-500`}
             />
           </div>
         </div>
@@ -292,10 +421,11 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
           disabled={
             (!selections.character &&
               !selections.outfit &&
-              !selections.background) ||
+              !selections.background &&
+              !selections.action) ||
             isGenerating
           }
-          className="w-full bg-[#be29ec] hover:bg-[#d896ff] text-[#130013] font-bold py-3 px-4 rounded-none border-2 border-[#d896ff] transition disabled:opacity-50 disabled:cursor-not-allowed mb-8 uppercase tracking-widest flex justify-center items-center"
+          className={`w-full ${theme.accent} ${theme.accentHover} ${theme.textDark} font-bold py-3 px-4 rounded-none border-2 border-transparent hover:${theme.borderMain} transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-8 uppercase tracking-widest flex justify-center items-center`}
         >
           {isGenerating ? (
             <span className="animate-pulse">Groq is cooking magic...</span>
@@ -304,15 +434,18 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
           )}
         </button>
 
+        {/* Output Section */}
         <div className="space-y-6 mb-12">
           <div className="relative">
             <div className="flex justify-between items-end mb-2">
-              <label className="text-sm font-bold text-[#130013] bg-[#be29ec] inline-block px-3 py-1 uppercase tracking-wider">
+              <label
+                className={`text-sm font-bold ${theme.textDark} ${theme.accent} inline-block px-3 py-1 uppercase tracking-wider transition-colors duration-500`}
+              >
                 Positive Prompt
               </label>
               <button
                 onClick={() => copyToClipboard(prompts.positive, "positive")}
-                className="text-xs font-bold text-[#efbbff] border border-[#be29ec] hover:bg-[#be29ec] hover:text-[#130013] px-3 py-1 transition uppercase"
+                className={`text-xs font-bold ${theme.textMain} border ${theme.borderMain} ${theme.accentHover} hover:${theme.textDark} px-3 py-1 transition-all uppercase`}
               >
                 {copiedPositive ? "Copied!" : "Copy"}
               </button>
@@ -320,19 +453,21 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
             <textarea
               readOnly
               value={prompts.positive}
-              className="w-full h-80 p-4 rounded-none bg-[#1a001a] border-2 border-[#be29ec] text-sm font-mono text-[#efbbff] focus:outline-none focus:border-[#d896ff] resize-none leading-relaxed"
+              className={`w-full h-80 p-4 rounded-none ${theme.bgInput} border-2 ${theme.borderMain} text-sm font-mono ${theme.textMain} focus:outline-none resize-none leading-relaxed transition-colors duration-500`}
               placeholder="Your positive prompt will appear here..."
             />
           </div>
 
           <div className="relative">
             <div className="flex justify-between items-end mb-2">
-              <label className="text-sm font-bold text-[#efbbff] bg-[#1a001a] border-2 border-[#be29ec] inline-block px-3 py-1 uppercase tracking-wider">
+              <label
+                className={`text-sm font-bold ${theme.textMain} ${theme.bgInput} border-2 ${theme.borderMain} inline-block px-3 py-1 uppercase tracking-wider transition-colors duration-500`}
+              >
                 Negative Prompt
               </label>
               <button
                 onClick={() => copyToClipboard(prompts.negative, "negative")}
-                className="text-xs font-bold text-[#efbbff] border border-[#be29ec] hover:bg-[#be29ec] hover:text-[#130013] px-3 py-1 transition uppercase"
+                className={`text-xs font-bold ${theme.textMain} border ${theme.borderMain} ${theme.accentHover} hover:${theme.textDark} px-3 py-1 transition-all uppercase`}
               >
                 {copiedNegative ? "Copied!" : "Copy"}
               </button>
@@ -340,131 +475,182 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
             <textarea
               readOnly
               value={prompts.negative}
-              className="w-full h-40 p-4 rounded-none bg-[#1a001a] border-2 border-[#be29ec] text-sm font-mono text-[#efbbff] focus:outline-none focus:border-[#d896ff] resize-none leading-relaxed"
+              className={`w-full h-40 p-4 rounded-none ${theme.bgInput} border-2 ${theme.borderMain} text-sm font-mono ${theme.textMain} focus:outline-none resize-none leading-relaxed transition-colors duration-500`}
               placeholder="Your negative prompt will appear here..."
             />
           </div>
         </div>
 
-        {/* ⚙️ อัปเกรด Settings Guide Section ⚙️ */}
-        <div className="pt-6 border-t-2 border-[#800080]">
-          <h2 className="text-lg font-bold text-[#d896ff] mb-4 uppercase tracking-wider flex items-center gap-2">
+        {/* Settings Guide Section */}
+        <div
+          className={`pt-6 border-t-2 ${theme.borderDim} transition-colors duration-500`}
+        >
+          <h2
+            className={`text-lg font-bold ${theme.textMuted} mb-4 uppercase tracking-wider flex items-center gap-2`}
+          >
             ⚙️ Generation Settings Guide (SDXL/Pony)
           </h2>
-          {/* เปลี่ยนจาก 3 คอลัมน์เป็น 4 คอลัมน์ */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-            {/* 1. Portrait Settings */}
-            <div className="bg-[#1a001a] border border-[#be29ec] p-4 flex flex-col">
-              <h3 className="font-bold text-[#efbbff] mb-3 uppercase border-b border-[#800080] pb-2 flex justify-between">
+            <div
+              className={`${theme.bgInput} border ${theme.borderMain} p-4 flex flex-col transition-colors duration-500`}
+            >
+              <h3
+                className={`font-bold ${theme.textMain} mb-3 uppercase border-b ${theme.borderDim} pb-2 flex justify-between`}
+              >
                 <span>📱 Portrait</span>
-                <span className="text-[#800080]">แนวตั้ง</span>
+                <span className={theme.textMuted}>แนวตั้ง</span>
               </h3>
-              <ul className="text-[#d896ff] space-y-3 font-mono flex-1 text-xs sm:text-sm">
+              <ul
+                className={`${theme.textMuted} space-y-3 font-mono flex-1 text-xs sm:text-sm`}
+              >
                 <li className="flex justify-between items-center">
                   <span>Width:</span>{" "}
-                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                  <span
+                    className={`text-white ${theme.bgCard} px-2 py-1 border ${theme.borderDim}`}
+                  >
                     896
                   </span>
                 </li>
                 <li className="flex justify-between items-center">
                   <span>Height:</span>{" "}
-                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                  <span
+                    className={`text-white ${theme.bgCard} px-2 py-1 border ${theme.borderDim}`}
+                  >
                     1152
                   </span>
                 </li>
-                <li className="flex justify-between text-xs text-[#800080] mt-4 pt-3 border-t border-[#800080]">
+                <li
+                  className={`flex justify-between text-xs ${theme.textMuted} mt-4 pt-3 border-t ${theme.borderDim}`}
+                >
                   Alt: 832 x 1216
                 </li>
               </ul>
             </div>
 
-            {/* 2. Landscape Settings */}
-            <div className="bg-[#1a001a] border border-[#be29ec] p-4 flex flex-col">
-              <h3 className="font-bold text-[#efbbff] mb-3 uppercase border-b border-[#800080] pb-2 flex justify-between">
+            <div
+              className={`${theme.bgInput} border ${theme.borderMain} p-4 flex flex-col transition-colors duration-500`}
+            >
+              <h3
+                className={`font-bold ${theme.textMain} mb-3 uppercase border-b ${theme.borderDim} pb-2 flex justify-between`}
+              >
                 <span>🖥️ Landscape</span>
-                <span className="text-[#800080]">แนวนอน</span>
+                <span className={theme.textMuted}>แนวนอน</span>
               </h3>
-              <ul className="text-[#d896ff] space-y-3 font-mono flex-1 text-xs sm:text-sm">
+              <ul
+                className={`${theme.textMuted} space-y-3 font-mono flex-1 text-xs sm:text-sm`}
+              >
                 <li className="flex justify-between items-center">
                   <span>Width:</span>{" "}
-                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                  <span
+                    className={`text-white ${theme.bgCard} px-2 py-1 border ${theme.borderDim}`}
+                  >
                     1152
                   </span>
                 </li>
                 <li className="flex justify-between items-center">
                   <span>Height:</span>{" "}
-                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                  <span
+                    className={`text-white ${theme.bgCard} px-2 py-1 border ${theme.borderDim}`}
+                  >
                     896
                   </span>
                 </li>
-                <li className="flex justify-between text-xs text-[#800080] mt-4 pt-3 border-t border-[#800080]">
+                <li
+                  className={`flex justify-between text-xs ${theme.textMuted} mt-4 pt-3 border-t ${theme.borderDim}`}
+                >
                   Alt: 1216 x 832
                 </li>
               </ul>
             </div>
 
-            {/* 3. General Settings */}
-            <div className="bg-[#1a001a] border border-[#be29ec] p-4 flex flex-col">
-              <h3 className="font-bold text-[#efbbff] mb-3 uppercase border-b border-[#800080] pb-2 flex justify-between">
+            <div
+              className={`${theme.bgInput} border ${theme.borderMain} p-4 flex flex-col transition-colors duration-500`}
+            >
+              <h3
+                className={`font-bold ${theme.textMain} mb-3 uppercase border-b ${theme.borderDim} pb-2 flex justify-between`}
+              >
                 <span>🔧 General</span>
-                <span className="text-[#800080]">ทั่วไป</span>
+                <span className={theme.textMuted}>ทั่วไป</span>
               </h3>
-              <ul className="text-[#d896ff] space-y-3 font-mono text-[11px] sm:text-xs flex-1">
+              <ul
+                className={`${theme.textMuted} space-y-3 font-mono text-[11px] sm:text-xs flex-1`}
+              >
                 <li className="flex flex-col gap-1">
                   <span>Sampler:</span>
-                  <span className="text-white bg-[#130013] p-1.5 border border-[#800080] text-center w-full">
+                  <span
+                    className={`text-white ${theme.bgCard} p-1.5 border ${theme.borderDim} text-center w-full`}
+                  >
                     DPM++ 2M SDE Karras
                   </span>
                 </li>
                 <li className="flex justify-between items-center">
                   <span>Steps:</span>{" "}
-                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                  <span
+                    className={`text-white ${theme.bgCard} px-2 py-1 border ${theme.borderDim}`}
+                  >
                     25 - 30
                   </span>
                 </li>
                 <li className="flex justify-between items-center">
                   <span>CFG Scale:</span>{" "}
-                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                  <span
+                    className={`text-white ${theme.bgCard} px-2 py-1 border ${theme.borderDim}`}
+                  >
                     5 - 7
                   </span>
                 </li>
                 <li className="flex justify-between items-center">
                   <span>Clip Skip:</span>{" "}
-                  <span className="text-[#00ff00] bg-[#130013] px-2 py-1 border border-[#800080]">
+                  <span
+                    className={`text-[#00ff00] ${theme.bgCard} px-2 py-1 border ${theme.borderDim}`}
+                  >
                     2
                   </span>
                 </li>
               </ul>
             </div>
 
-            {/* 4. Hires Fix Settings */}
-            <div className="bg-[#1a001a] border border-[#be29ec] p-4 flex flex-col">
-              <h3 className="font-bold text-[#efbbff] mb-3 uppercase border-b border-[#800080] pb-2 flex justify-between">
+            <div
+              className={`${theme.bgInput} border ${theme.borderMain} p-4 flex flex-col transition-colors duration-500`}
+            >
+              <h3
+                className={`font-bold ${theme.textMain} mb-3 uppercase border-b ${theme.borderDim} pb-2 flex justify-between`}
+              >
                 <span>✨ Hires. Fix</span>
-                <span className="text-[#800080]">อัปสเกล</span>
+                <span className={theme.textMuted}>อัปสเกล</span>
               </h3>
-              <ul className="text-[#d896ff] space-y-3 font-mono text-[11px] sm:text-xs flex-1">
+              <ul
+                className={`${theme.textMuted} space-y-3 font-mono text-[11px] sm:text-xs flex-1`}
+              >
                 <li className="flex flex-col gap-1">
                   <span>Upscaler:</span>
-                  <span className="text-white bg-[#130013] p-1.5 border border-[#800080] text-center w-full whitespace-nowrap overflow-hidden text-ellipsis">
+                  <span
+                    className={`text-white ${theme.bgCard} p-1.5 border ${theme.borderDim} text-center w-full whitespace-nowrap overflow-hidden text-ellipsis`}
+                  >
                     R-ESRGAN 4x+ Anime6B
                   </span>
                 </li>
                 <li className="flex justify-between items-center">
                   <span>Hires steps:</span>{" "}
-                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                  <span
+                    className={`text-white ${theme.bgCard} px-2 py-1 border ${theme.borderDim}`}
+                  >
                     10 - 15
                   </span>
                 </li>
                 <li className="flex justify-between items-center">
                   <span>Denoising:</span>{" "}
-                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                  <span
+                    className={`text-white ${theme.bgCard} px-2 py-1 border ${theme.borderDim}`}
+                  >
                     0.25 - 0.35
                   </span>
                 </li>
                 <li className="flex justify-between items-center">
                   <span>Upscale by:</span>{" "}
-                  <span className="text-white bg-[#130013] px-2 py-1 border border-[#800080]">
+                  <span
+                    className={`text-white ${theme.bgCard} px-2 py-1 border ${theme.borderDim}`}
+                  >
                     1.5x
                   </span>
                 </li>
