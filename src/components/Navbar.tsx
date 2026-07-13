@@ -8,6 +8,7 @@ export default function Navbar({ isNsfw = false }: { isNsfw?: boolean }) {
   const navLinks = [
     { name: "📝 Prompt Generator", path: "/" },
     { name: "📸 Image to Outfit", path: "/image-to-prompt" },
+    { name: "🏙️ Image to Background", path: "/image-to-background" }, // 🚀 เพิ่มเมนูใหม่ตรงนี้
   ];
 
   // กำหนดสี Navbar ตามโหมด
