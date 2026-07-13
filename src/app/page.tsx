@@ -317,12 +317,12 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
     if (charTags) baseCharBlock += `\n${charTags},`;
 
     positiveBlocks.push(baseCharBlock);
-
+    
     // 🚀 อัปเกรด: เพิ่ม alternate costume และเร่งน้ำหนักชุด (1.2) เพื่อบังคับ AI เปลี่ยนชุด
     if (expandedOutfit) {
       positiveBlocks.push(`alternate costume,\n(${expandedOutfit}:1.2),`);
     }
-
+    
     positiveBlocks.push(`${generatedPoses},\n${generatedMood},`);
     if (expandedBg) positiveBlocks.push(`${expandedBg},`);
     positiveBlocks.push(
