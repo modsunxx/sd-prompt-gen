@@ -135,7 +135,6 @@ oversaturated, underexposed, source_pony, source_furry, source_cartoon`;
     const loraTag = foundChar ? foundChar.lora : "";
     let charTags = foundChar ? foundChar.tags : "";
 
-    // ปรับแต่งแท็กตัวละครถ้าเลือกมากกว่า 1 คน
     if (isNsfw && selections.peopleCount !== "1girl, solo") {
       charTags = charTags
         .replace(/1girl, solo, /g, "")
@@ -168,12 +167,13 @@ oversaturated, underexposed, source_pony, source_furry, source_cartoon`;
                   role: "system",
                   content: `You are a Master Stable Diffusion Prompt Engineer. 
 TRANSLATE ALL INPUTS TO ENGLISH ACCURATELY. DO NOT OUTPUT ANY THAI CHARACTERS.
-CRITICAL RULE: Keep exact clothing items the user asks for.
+CRITICAL RULE 1: Keep exact clothing items the user asks for.
+CRITICAL RULE 2: ALL output values MUST be a single flat string of comma-separated tags (Danbooru-style). DO NOT write sentences, paragraphs, arrays, or nested objects.
 ${isNsfw ? "WARNING: The user is in NSFW mode. You MUST generate highly explicit, detailed, and suggestive Danbooru-style tags if the user's action/pose input requires it. Do not hold back." : ""}
 - For outfit: strictly use the user's garments, describe layers, materials.
-- For poses & mood: generate 5-8 related poses/actions/camera angles based on the user's action description. 
+- For poses & mood: generate 5-8 related poses/actions/camera angles as comma-separated tags based on the user's action description. 
 - For background: describe lighting, atmosphere, and specific surrounding objects.
-Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "mood", "background".`,
+Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "mood", "background". Example: {"outfit": "white shirt, black pants", "poses": "sitting, legs spread", "mood": "confident", "background": "bedroom, dim lighting"}`,
                 },
                 {
                   role: "user",
@@ -189,14 +189,27 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
           const data = await res.json();
           const parsed = JSON.parse(data.choices[0].message.content);
 
-          if (parsed.outfit && parsed.outfit !== "none")
-            expandedOutfit = parsed.outfit;
-          if (parsed.poses && parsed.poses !== "none")
-            generatedPoses = parsed.poses;
-          if (parsed.mood && parsed.mood !== "none")
-            generatedMood = parsed.mood;
-          if (parsed.background && parsed.background !== "none")
-            expandedBg = parsed.background;
+          // ฟังก์ชันดักจับ: ถ้า AI ส่ง Object หรือ Array มา ให้แปลงเป็น String ขั้นด้วยลูกน้ำให้หมด
+          const extractStr = (val: unknown): string => {
+            if (val == null) return "";
+            if (val === "none") return "";
+            if (typeof val === "string") return val;
+            if (Array.isArray(val)) return val.map((v) => String(v)).join(", ");
+            if (typeof val === "object") return Object.values(val as Record<string, unknown>)
+              .map((v) => String(v))
+              .join(", ");
+            return String(val);
+          };
+
+          const newOutfit = extractStr(parsed.outfit);
+          const newPoses = extractStr(parsed.poses);
+          const newMood = extractStr(parsed.mood);
+          const newBg = extractStr(parsed.background);
+
+          if (newOutfit) expandedOutfit = newOutfit;
+          if (newPoses) generatedPoses = newPoses;
+          if (newMood) generatedMood = newMood;
+          if (newBg) expandedBg = newBg;
 
           isApiSuccess = true;
         } else {
@@ -222,7 +235,6 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
     if (loraTag) positiveBlocks.push(`${loraTag},`);
 
     let baseCharBlock = "score_9, score_8_up, score_7_up, source_anime,";
-    // ใส่แท็กจำนวนคนแบบอัตโนมัติ
     if (isNsfw) {
       baseCharBlock += `\n${selections.peopleCount},`;
     }
@@ -238,17 +250,16 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
 
     const finalPositive = positiveBlocks.join("\n\n");
 
-    // Dynamic Negative Prompt ป้องกันคำสั่งตีกัน
     let finalNegative = baseNegative;
-    
     if (isNsfw) {
-      // 1. ถ้าเลือกคนเยอะ ให้เอาคำสั่งห้ามคนงอกออก
       if (selections.peopleCount !== "1girl, solo") {
-        finalNegative = finalNegative.replace("multiple girls, multiple boys, group, crowd, 2girls, 3girls, clones, extra characters, background characters, \n", "");
+        finalNegative = finalNegative.replace(
+          "multiple girls, multiple boys, group, crowd, 2girls, 3girls, clones, extra characters, background characters, \n",
+          "",
+        );
       }
-      
-      // 2. เติม Negative Prompt เฉพาะกิจสำหรับ NSFW เพื่อกันภาพหลอนและติดเซ็นเซอร์
-      finalNegative += ",\ncensored, mosaic censoring, bar censor, (poorly drawn genitals, bad crotch:1.2), guro, amputation";
+      finalNegative +=
+        ",\ncensored, mosaic censoring, bar censor, (poorly drawn genitals, bad crotch:1.2), guro, amputation";
     }
 
     setPrompts({
