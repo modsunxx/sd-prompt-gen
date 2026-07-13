@@ -35,6 +35,7 @@ export default function PromptGenerator() {
   const [copiedPositive, setCopiedPositive] = useState(false);
   const [copiedNegative, setCopiedNegative] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const characterOptions: Option[] = [
     {
@@ -160,19 +161,28 @@ oversaturated, underexposed, source_pony, source_furry, source_cartoon`;
               Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-              model: "llama-3.1-8b-instant",
+              // 🚀 อัปเกรด 1: เปลี่ยนมาใช้โมเดลตัวท็อปสุด (70B)
+              model: "llama-3.3-70b-versatile",
               response_format: { type: "json_object" },
               messages: [
                 {
                   role: "system",
-                  content: `You are a Master Stable Diffusion Prompt Engineer. 
+                  content: `You are an elite Danbooru Prompt Engineer specializing in Stable Diffusion (SDXL/Pony models). 
 TRANSLATE ALL INPUTS TO ENGLISH ACCURATELY. DO NOT OUTPUT ANY THAI CHARACTERS.
-CRITICAL RULE 1: Keep exact clothing items the user asks for.
-CRITICAL RULE 2: ALL output values MUST be a single flat string of comma-separated tags (Danbooru-style). DO NOT write sentences, paragraphs, arrays, or nested objects.
-${isNsfw ? "WARNING: The user is in NSFW mode. You MUST generate highly explicit, detailed, and suggestive Danbooru-style tags if the user's action/pose input requires it. Do not hold back." : ""}
-- For outfit: strictly use the user's garments, describe layers, materials.
+
+CRITICAL RULE 1: Keep exact clothing items the user asks for. Do not change pants to skirts, etc.
+CRITICAL RULE 2: ALL output values MUST be a single flat string of comma-separated tags. DO NOT write sentences, paragraphs, arrays, or nested objects. Use standard Danbooru tags format.
+
+${
+  isNsfw
+    ? "CRITICAL RULE 3 (NSFW MODE): The user requests highly explicit, suggestive, and uncensored content. You MUST use precise NSFW Danbooru tags for anatomy, clothing states (e.g., torn clothes, undressing, half-closed eyes), and intimate interactions based on the Action input. Do not hold back. Act as a dedicated NSFW prompt creator."
+    : "CRITICAL RULE 3 (SFW MODE): Focus heavily on aesthetic, beautiful details, cinematic lighting, and highly detailed clothing/background tags."
+}
+
+- For outfit: strictly use the user's garments, describe layers, materials (e.g., latex, silk), and accessories.
 - For poses & mood: generate 5-8 related poses/actions/camera angles as comma-separated tags based on the user's action description. 
 - For background: describe lighting, atmosphere, and specific surrounding objects.
+
 Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "mood", "background". Example: {"outfit": "white shirt, black pants", "poses": "sitting, legs spread", "mood": "confident", "background": "bedroom, dim lighting"}`,
                 },
                 {
@@ -180,11 +190,11 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
                   content: `Outfit: ${selections.outfit || "none"}\nBackground: ${selections.background || "none"}${isNsfw ? `\nAction/Pose: ${selections.action || "none"}` : ""}`,
                 },
               ],
-              temperature: 0.6,
+              // 🚀 อัปเกรด 3: ปรับ Temperature เป็น 0.7 เพื่อให้ AI มีความสร้างสรรค์ในการหา Tags แปลกๆ ใหม่ๆ มาใส่ให้
+              temperature: 0.7,
             }),
           },
         );
-
         if (res.ok) {
           const data = await res.json();
           const parsed = JSON.parse(data.choices[0].message.content);
@@ -195,9 +205,10 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
             if (val === "none") return "";
             if (typeof val === "string") return val;
             if (Array.isArray(val)) return val.map((v) => String(v)).join(", ");
-            if (typeof val === "object") return Object.values(val as Record<string, unknown>)
-              .map((v) => String(v))
-              .join(", ");
+            if (typeof val === "object")
+              return Object.values(val as Record<string, unknown>)
+                .map((v) => String(v))
+                .join(", ");
             return String(val);
           };
 
@@ -270,6 +281,11 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
     setCopiedPositive(false);
     setCopiedNegative(false);
     setIsGenerating(false);
+
+    setIsSuccess(true);
+    setTimeout(() => {
+      setIsSuccess(false);
+    }, 3000);
   };
 
   const copyToClipboard = (text: string, type: "positive" | "negative") => {
@@ -434,12 +450,25 @@ Return ONLY a valid JSON object containing exactly 4 keys: "outfit", "poses", "m
               !selections.outfit &&
               !selections.background &&
               !selections.action) ||
-            isGenerating
+            isGenerating ||
+            isSuccess
           }
-          className={`w-full ${theme.accent} ${theme.accentHover} ${theme.textDark} font-bold py-3 px-4 rounded-none border-2 border-transparent hover:${theme.borderMain} transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-8 uppercase tracking-widest flex justify-center items-center`}
+          className={`w-full font-bold py-3 px-4 rounded-none border-2 transition-all duration-300 uppercase tracking-widest flex justify-center items-center mb-8 disabled:opacity-90 disabled:cursor-not-allowed ${
+            isSuccess
+              ? "bg-[#00ff00] text-[#130013] border-[#00ff00] shadow-[0_0_20px_#00ff00]" // สีปุ่มตอนเสร็จ (เขียวเรืองแสง)
+              : isGenerating
+                ? `${theme.bgInput} ${theme.textMain} border-dashed ${theme.borderDim}` // สีปุ่มตอนกำลังโหลด
+                : `${theme.accent} ${theme.accentHover} ${theme.textDark} border-transparent hover:${theme.borderMain}` // สีปุ่มปกติ
+          }`}
         >
-          {isGenerating ? (
-            <span className="animate-pulse">Groq is cooking magic...</span>
+          {isSuccess ? (
+            <span className="flex items-center gap-2 animate-bounce">
+              ✅ GENERATION COMPLETE!
+            </span>
+          ) : isGenerating ? (
+            <span className="flex items-center gap-2 animate-pulse">
+              ⏳ Groq is cooking magic...
+            </span>
           ) : (
             "Generate Prompt"
           )}
