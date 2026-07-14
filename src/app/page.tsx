@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, ChangeEvent } from "react";
 import { Open_Sans } from "next/font/google";
 import Navbar from "../components/Navbar";
+import { useState, ChangeEvent, useEffect } from "react";
 
 const openSans = Open_Sans({
   subsets: ["latin"],
@@ -36,6 +36,51 @@ export default function PromptGenerator() {
   const [copiedNegative, setCopiedNegative] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  // ตัวแปรสำหรับป้องกันการเซฟค่าเริ่มต้นทับข้อมูลเก่าตอนโหลดหน้าเว็บ
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // --------------------------------------------------------
+  // 🧠 ระบบ LocalStorage: โหลดข้อมูลเก่ากลับมาเมื่อเปิดเว็บ
+  // --------------------------------------------------------
+  useEffect(() => {
+    const savedSelections = localStorage.getItem("aiMegaPack_selections");
+    const savedPrompts = localStorage.getItem("aiMegaPack_prompts");
+    const savedNsfw = localStorage.getItem("aiMegaPack_isNsfw");
+
+    // eslint-disable-next-line
+    if (savedSelections) setSelections(JSON.parse(savedSelections));
+
+    // eslint-disable-next-line
+    if (savedPrompts) setPrompts(JSON.parse(savedPrompts));
+
+    // eslint-disable-next-line
+    if (savedNsfw) setIsNsfw(JSON.parse(savedNsfw));
+
+    // โหลดข้อมูลเสร็จแล้ว อนุญาตให้ระบบเซฟทำงานได้
+    setIsLoaded(true);
+  }, []);
+
+  // --------------------------------------------------------
+  // 💾 ระบบ LocalStorage: เซฟข้อมูลอัตโนมัติทุกครั้งที่มีการพิมพ์หรือเปลี่ยนค่า
+  // --------------------------------------------------------
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem("aiMegaPack_selections", JSON.stringify(selections));
+    }
+  }, [selections, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem("aiMegaPack_prompts", JSON.stringify(prompts));
+    }
+  }, [prompts, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem("aiMegaPack_isNsfw", JSON.stringify(isNsfw));
+    }
+  }, [isNsfw, isLoaded]);
 
   // 🚀 อัปเดตรายชื่อ Character LoRA ทั้งหมดจากโฟลเดอร์
   const characterOptions: Option[] = [
@@ -347,6 +392,7 @@ source_pony, source_furry, source_cartoon,
     );
     const loraTag = foundChar ? foundChar.lora.replace("0.88", "0.75") : "";
     let charTags = foundChar ? foundChar.tags : "";
+
     if (isNsfw && selections.peopleCount !== "1girl, solo") {
       charTags = charTags
         .replace(/1girl, solo, /g, "")
@@ -359,10 +405,11 @@ source_pony, source_furry, source_cartoon,
       : selections.posePreset === "custom"
         ? selections.action
         : selections.posePreset;
-    let expandedOutfit = "detailed clothes",
-      expandedBg = "simple background",
-      generatedPoses = "dynamic pose, looking at viewer",
-      generatedMood = "(confident:1.1)";
+
+    let expandedOutfit = "detailed clothes";
+    let expandedBg = "simple background";
+    let generatedPoses = "dynamic pose, looking at viewer";
+    let generatedMood = "(confident:1.1)";
 
     try {
       const res = await fetch(
@@ -426,24 +473,31 @@ Return ONLY a valid JSON object matching this exact structure: {"outfit": "...",
     const positiveBlocks = [];
     if (loraTag) positiveBlocks.push(`${loraTag},`);
     let baseCharBlock = "score_9, score_8_up, score_7_up, source_anime,";
+
     if (isNsfw) baseCharBlock += `\n${selections.peopleCount},`;
     if (charTags) baseCharBlock += `\n${charTags},`;
+
     positiveBlocks.push(baseCharBlock);
+
     if (expandedOutfit)
       positiveBlocks.push(`alternate costume,\n(${expandedOutfit}:1.2),`);
+
     positiveBlocks.push(`${generatedPoses},\n${generatedMood},`);
+
     if (expandedBg) positiveBlocks.push(`${expandedBg},`);
+
     positiveBlocks.push(
       `(masterpiece, best quality, highly detailed, intricate details, sharp focus, cinematic lighting, dramatic lighting, soft lighting, volumetric light:1.1)`,
     );
 
     let finalNegative = baseNegative;
     if (isNsfw) {
-      if (selections.peopleCount !== "1girl, solo")
+      if (selections.peopleCount !== "1girl, solo") {
         finalNegative = finalNegative.replace(
           "multiple girls, multiple boys, group, crowd, 2girls, 3girls, clones, extra characters, background characters, \n",
           "",
         );
+      }
       finalNegative +=
         ",\ncensored, mosaic censoring, bar censor, (poorly drawn genitals, bad crotch:1.2), guro, amputation";
     }
