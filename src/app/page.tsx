@@ -22,6 +22,7 @@ export default function PromptGenerator() {
     character: "",
     outfit: "",
     background: "",
+    negativeInput: "", // 🚀 [ใหม่] เพิ่ม State สำหรับสิ่งที่ไม่ต้องการ
     peopleCount: "1girl, solo",
     posePreset: "",
     action: "",
@@ -50,9 +51,7 @@ export default function PromptGenerator() {
 
     // eslint-disable-next-line
     if (savedSelections) setSelections(JSON.parse(savedSelections));
-
     if (savedPrompts) setPrompts(JSON.parse(savedPrompts));
-
     if (savedNsfw) setIsNsfw(JSON.parse(savedNsfw));
 
     // โหลดข้อมูลเสร็จแล้ว อนุญาตให้ระบบเซฟทำงานได้
@@ -408,6 +407,7 @@ source_pony, source_furry, source_cartoon,
     let expandedBg = "simple background";
     let generatedPoses = "dynamic pose, looking at viewer";
     let generatedMood = "(confident:1.1)";
+    let generatedNegative = ""; // 🚀 รับค่าจาก AI สำหรับสิ่งที่ไม่ต้องการ
 
     try {
       const res = await fetch(
@@ -433,12 +433,13 @@ CRITICAL INSTRUCTIONS PER JSON KEY:
 2. "poses": Pick EXACTLY ONE main physical pose to prevent conflicts. Enhance with 2-3 compatible supporting tags (e.g., camera angle, hand gesture, head tilt).
 3. "background": ALLOW compound phrases here to maintain environmental context (e.g., "sitting on futuristic office desk", "rainy neon cyberpunk street"). 
 4. "mood": Output facial expressions, cinematic lighting, and atmospheric tags (e.g., confident smile, rim lighting, depth of field).
+5. "negative": Translate the 'Avoid' input into negative Danbooru tags (e.g., skirt, boots, glasses). If 'Avoid' is 'none', output an empty string.
 
-Return ONLY a valid JSON object matching this exact structure: {"outfit": "...", "poses": "...", "mood": "...", "background": "..."}`,
+Return ONLY a valid JSON object matching this exact structure: {"outfit": "...", "poses": "...", "mood": "...", "background": "...", "negative": "..."}`,
               },
               {
                 role: "user",
-                content: `Outfit: ${selections.outfit || "none"}\nBackground: ${selections.background || "none"}\nAction: ${actualAction || "none"}`,
+                content: `Outfit: ${selections.outfit || "none"}\nBackground: ${selections.background || "none"}\nAction: ${actualAction || "none"}\nAvoid: ${selections.negativeInput || "none"}`,
               },
             ],
             temperature: 0.7,
@@ -463,6 +464,7 @@ Return ONLY a valid JSON object matching this exact structure: {"outfit": "...",
         generatedPoses = extractStr(parsed.poses) || generatedPoses;
         generatedMood = extractStr(parsed.mood) || generatedMood;
         expandedBg = extractStr(parsed.background) || expandedBg;
+        generatedNegative = extractStr(parsed.negative); // 🚀 ดึงค่า Negative
       }
     } catch (error) {
       console.error("Groq API Error:", error);
@@ -488,7 +490,13 @@ Return ONLY a valid JSON object matching this exact structure: {"outfit": "...",
       `(masterpiece, best quality, highly detailed, intricate details, sharp focus, cinematic lighting, dramatic lighting, soft lighting, volumetric light:1.1)`,
     );
 
+    // 🚀 รวม Negative tags ใหม่เข้ากับ baseNegative
     let finalNegative = baseNegative;
+
+    if (generatedNegative) {
+      finalNegative = `(${generatedNegative}:1.3),\n` + finalNegative;
+    }
+
     if (isNsfw) {
       if (selections.peopleCount !== "1girl, solo") {
         finalNegative = finalNegative.replace(
@@ -608,20 +616,39 @@ Return ONLY a valid JSON object matching this exact structure: {"outfit": "...",
             )}
           </div>
 
-          <div className="flex flex-col">
-            <label
-              className={`mb-2 text-sm font-semibold ${theme.textMuted} uppercase tracking-wider`}
-            >
-              Outfit & Details (บอกสั้นๆ ให้ AI ช่วยขยายได้เลย)
-            </label>
-            <textarea
-              name="outfit"
-              value={selections.outfit}
-              onChange={handleInputChange}
-              placeholder="เช่น ใส่ชุด office เสื้อเชิ้ตขาว กางเกง latex สีดำ..."
-              rows={2}
-              className={`p-3 rounded-none ${theme.bgInput} border-2 ${theme.borderMain} ${theme.textMain} focus:outline-none focus:border-[white] placeholder-${theme.borderDim.replace("border-", "")} resize-y transition-colors duration-500`}
-            />
+          {/* 🚀 แบ่งกล่องใส่ชุด และ กล่องใส่สิ่งที่ไม่ต้องการ ไว้ข้างๆ กัน */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="flex flex-col">
+              <label
+                className={`mb-2 text-sm font-semibold ${theme.textMuted} uppercase tracking-wider`}
+              >
+                Outfit & Details (บรีฟชุดที่อยากได้)
+              </label>
+              <textarea
+                name="outfit"
+                value={selections.outfit}
+                onChange={handleInputChange}
+                placeholder="เช่น ใส่ชุด office เสื้อเชิ้ตขาว กางเกง latex สีดำ..."
+                rows={2}
+                className={`p-3 rounded-none ${theme.bgInput} border-2 ${theme.borderMain} ${theme.textMain} focus:outline-none focus:border-[white] placeholder-${theme.borderDim.replace("border-", "")} resize-y transition-colors duration-500`}
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label
+                className={`mb-2 text-sm font-semibold ${theme.textMuted} uppercase tracking-wider`}
+              >
+                🚫 สิ่งที่ไม่ต้องการ (Negative Details)
+              </label>
+              <textarea
+                name="negativeInput"
+                value={selections.negativeInput}
+                onChange={handleInputChange}
+                placeholder="เช่น ไม่เอากระโปรง ไม่เอารองเท้าบูท..."
+                rows={2}
+                className={`p-3 rounded-none ${theme.bgInput} border-2 border-red-500 text-red-200 focus:outline-none focus:border-red-400 placeholder-red-900 resize-y transition-colors duration-500`}
+              />
+            </div>
           </div>
 
           <div className="flex flex-col animate-fade-in-down">
@@ -686,7 +713,8 @@ Return ONLY a valid JSON object matching this exact structure: {"outfit": "...",
               !selections.outfit &&
               !selections.background &&
               !selections.action &&
-              !selections.posePreset) ||
+              !selections.posePreset &&
+              !selections.negativeInput) ||
             isGenerating ||
             isSuccess
           }
