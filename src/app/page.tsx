@@ -51,10 +51,8 @@ export default function PromptGenerator() {
     // eslint-disable-next-line
     if (savedSelections) setSelections(JSON.parse(savedSelections));
 
-    // eslint-disable-next-line
     if (savedPrompts) setPrompts(JSON.parse(savedPrompts));
 
-    // eslint-disable-next-line
     if (savedNsfw) setIsNsfw(JSON.parse(savedNsfw));
 
     // โหลดข้อมูลเสร็จแล้ว อนุญาตให้ระบบเซฟทำงานได้
