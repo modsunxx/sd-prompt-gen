@@ -272,58 +272,79 @@ export default function PromptGenerator() {
   const poseOptions = [
     { value: "", label: "-- เลือกท่าทาง (Select Pose) --" },
     {
-      value: "standing, looking at viewer, arms at sides",
-      label: "🧍‍♀️ Standing Neutral",
+      value:
+        "standing, looking at viewer, arms at sides, straight posture, feet together, relaxed shoulders",
+      label: "🧍‍♀️ ยืนตรง ท่าปกติ",
     },
     {
-      value: "hands on hips, confident, confident smile",
-      label: "😎 Confident / Hands on Hips",
-    },
-    { value: "arms crossed, looking at viewer", label: "😤 Arms Crossed" },
-    {
-      value: "dynamic action pose, combat ready, holding weapon",
-      label: "⚔️ Dynamic Action Pose",
+      value:
+        "standing, hands on hips, confident, confident smile, chest out, one leg slightly forward, smirk",
+      label: "😎 ท่ามั่นใจ มือเท้าเอว",
     },
     {
-      value: "peace sign, victory pose, smiling, happy",
-      label: "✌️ Victory / Peace Sign",
-    },
-    { value: "sitting, casual pose", label: "🪑 Sitting Pose (Casual)" },
-    {
-      value: "jumping, mid-air, dynamic pose",
-      label: "🚀 Jumping / Mid-Air Dynamic",
+      value:
+        "standing, arms crossed, looking at viewer, serious expression, weight on one leg, slight frown",
+      label: "😤 กอดอก",
     },
     {
-      value: "close-up, looking back, looking over shoulder",
-      label: "📸 Close-up Portrait",
+      value:
+        "dynamic action pose, combat ready stance, holding weapon, knees bent, one arm extended, intense gaze, wind blowing hair",
+      label: "⚔️ ท่าแอ็คชั่น พร้อมต่อสู้",
     },
     {
-      value: "reclining, lying pose, hand supporting head",
-      label: "🛏️ Reclining / Lying Pose",
+      value:
+        "peace sign, victory pose, smiling, happy, one eye closed, tongue out slightly, tilted head",
+      label: "✌️ ท่าชู 2 นิ้ว ยิ้มสดใส",
     },
     {
-      value: "running, sprint pose, dynamic action",
-      label: "🏃‍♀️ Running / Sprint Pose",
+      value:
+        "sitting, casual pose, legs crossed, hand resting on lap, relaxed expression, looking at viewer",
+      label: "🪑 นั่งท่าลำลอง",
     },
     {
-      value: "shy, embarrassed, hand on cheek, blushing",
-      label: "😳 Shy / Embarrassed Pose",
+      value:
+        "jumping, mid-air, dynamic pose, hair flowing, arms spread out, skirt flutter, excited expression",
+      label: "🚀 ท่ากระโดดลอยตัว",
     },
     {
-      value: "magic casting, power up pose, glowing aura",
-      label: "✨ Magic Casting",
+      value:
+        "close-up, upper body, looking back, looking over shoulder, soft smile, wind in hair, blush",
+      label: "📸 ภาพระยะใกล้ หันมอง",
     },
     {
-      value: "thinking, hand on chin, looking up",
-      label: "🤔 Thinking / Chin Rest Pose",
+      value:
+        "reclining, lying pose, hand supporting head, on side, relaxed expression, one leg bent",
+      label: "🛏️ ท่านอนเอนกาย",
     },
     {
-      value: "from behind, back view, looking over shoulder",
-      label: "🔙 Back View / Over Shoulder",
+      value:
+        "running, sprint pose, dynamic action, leaning forward, arms pumping, determined expression, motion blur background",
+      label: "🏃‍♀️ ท่าวิ่งเร็ว",
     },
     {
-      value: "crouching, alert pose, hand on ground",
-      label: "🥷 Crouching / Alert Pose",
+      value:
+        "shy, embarrassed, hand on cheek, blushing, looking away, nervous smile, fidgeting fingers",
+      label: "😳 ท่าเขินอาย",
+    },
+    {
+      value:
+        "magic casting, power up pose, glowing aura, sparkles, hand raised with energy effect, determined eyes, cape flowing",
+      label: "✨ ท่าร่ายเวทมนตร์",
+    },
+    {
+      value:
+        "thinking, hand on chin, looking up, tilted head, curious expression, one eyebrow raised",
+      label: "🤔 ท่าคิด เอามือแตะคาง",
+    },
+    {
+      value:
+        "from behind, back view, looking over shoulder, hair flowing, hand touching hair, soft smile",
+      label: "🔙 มุมมองด้านหลัง หันมอง",
+    },
+    {
+      value:
+        "crouching, alert pose, hand on ground, low stance, sharp gaze, ready to spring, tense muscles",
+      label: "🥷 ท่าหมอบ พร้อมระวังภัย",
     },
     { value: "custom", label: "✍️ พิมพ์ท่าทางเอง (Custom)" },
   ];
