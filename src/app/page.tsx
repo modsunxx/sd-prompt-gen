@@ -253,8 +253,8 @@ export default function PromptGenerator() {
     {
       id: "yae",
       label: "Yae Miko",
-      lora: "<lora:yae_miko_pony:0.75>",
-      tags: "yae miko, 1girl, solo, beautiful detailed face, pink hair, fox ears, long hair, gold eyes, hat, fox tail",
+      lora: "<lora:yaemiko_pony:0.75>",
+      tags: "yae miko, animal ears, floppy ears, fox ears, hair between eyes, long hair, pink hair, purple eyes, pink hair,",
     },
     {
       id: "yaoguang",
