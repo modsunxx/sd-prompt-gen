@@ -288,7 +288,11 @@ export default function PromptGenerator() {
 
   const baseNegative = `score_6, score_5, score_4, worst quality, low quality, normal quality, 
 (extra legs, extra limbs, third leg, mutant, fused anatomy:1.4), 
-(bad hands, poorly drawn face:1.2), 
+(bad hands, bad fingers, poorly drawn hands, poorly drawn face:1.3), 
+(extra fingers, missing fingers, fused fingers, too many fingers, 
+mutated hands, malformed hands, deformed hands, 
+extra digit, fewer digits, disfigured, long fingers, short fingers:1.4), 
+(bad anatomy, bad proportions, extra arms:1.3), 
 multiple girls, multiple boys, group, crowd, clones, extra characters, 
 text, watermark, logo, username, signature, 
 lowres, jpeg artifacts, 
