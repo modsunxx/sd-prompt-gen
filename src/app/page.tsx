@@ -22,7 +22,7 @@ export default function PromptGenerator() {
     character: "",
     outfit: "",
     background: "",
-    negativeInput: "", // 🚀 [ใหม่] เพิ่ม State สำหรับสิ่งที่ไม่ต้องการ
+    negativeInput: "",
     peopleCount: "1girl, solo",
     posePreset: "",
     action: "",
@@ -38,11 +38,10 @@ export default function PromptGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // ตัวแปรสำหรับป้องกันการเซฟค่าเริ่มต้นทับข้อมูลเก่าตอนโหลดหน้าเว็บ
   const [isLoaded, setIsLoaded] = useState(false);
 
   // --------------------------------------------------------
-  // 🧠 ระบบ LocalStorage: โหลดข้อมูลเก่ากลับมาเมื่อเปิดเว็บ
+  // 🧠 ระบบ LocalStorage
   // --------------------------------------------------------
   useEffect(() => {
     const savedSelections = localStorage.getItem("aiMegaPack_selections");
@@ -51,16 +50,14 @@ export default function PromptGenerator() {
 
     // eslint-disable-next-line
     if (savedSelections) setSelections(JSON.parse(savedSelections));
+    // eslint-disable-next-line
     if (savedPrompts) setPrompts(JSON.parse(savedPrompts));
+    // eslint-disable-next-line
     if (savedNsfw) setIsNsfw(JSON.parse(savedNsfw));
 
-    // โหลดข้อมูลเสร็จแล้ว อนุญาตให้ระบบเซฟทำงานได้
     setIsLoaded(true);
   }, []);
 
-  // --------------------------------------------------------
-  // 💾 ระบบ LocalStorage: เซฟข้อมูลอัตโนมัติทุกครั้งที่มีการพิมพ์หรือเปลี่ยนค่า
-  // --------------------------------------------------------
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem("aiMegaPack_selections", JSON.stringify(selections));
@@ -79,7 +76,7 @@ export default function PromptGenerator() {
     }
   }, [isNsfw, isLoaded]);
 
-  // 🚀 อัปเดตรายชื่อ Character LoRA ทั้งหมดจากโฟลเดอร์
+  // 🚀 รายชื่อ Character LoRA
   const characterOptions: Option[] = [
     {
       id: "2b",
@@ -205,7 +202,7 @@ export default function PromptGenerator() {
       id: "raiden",
       label: "Raiden Shogun",
       lora: "<lora:raiden_shogun_pony:0.75>",
-      tags: "raiden shogun, 1girl, solo, beautiful detailed face, purple hair, long braided hair, purple eyes, ponytail, japanese clothes, hair ornament",
+      tags: "raiden shogun, braid, braided ponytail, hair flower, hair ornament, long hair, mole, mole under eye, purple eyes, purple flower, purple hair, single braid, sidelocks",
     },
     {
       id: "rappa",
@@ -350,17 +347,12 @@ export default function PromptGenerator() {
   ];
 
   const baseNegative = `score_6, score_5, score_4, worst quality, low quality, normal quality, 
-(extra legs, extra limbs, third leg, mutant, fused anatomy:1.4), 
-(bad hands, bad fingers, poorly drawn hands, poorly drawn face:1.3), 
-(extra fingers, missing fingers, fused fingers, too many fingers, 
-mutated hands, malformed hands, deformed hands, 
-extra digit, fewer digits, disfigured, long fingers, short fingers:1.4), 
-(bad anatomy, bad proportions, extra arms:1.3), 
-multiple girls, multiple boys, group, crowd, clones, extra characters, 
+(extra legs, extra limbs, fused anatomy:1.2), 
+(bad hands, poorly drawn face:1.2), 
+multiple girls, multiple boys, group, clones, 
 text, watermark, logo, username, signature, 
-lowres, jpeg artifacts, 
 source_pony, source_furry, source_cartoon,
-(default outfit, original outfit, signature attire, official costume:1.4)`;
+(default outfit, original outfit, signature attire:1.2)`;
 
   const theme = isNsfw
     ? {
@@ -400,7 +392,7 @@ source_pony, source_furry, source_cartoon,
   const generatePrompt = async () => {
     const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
     if (!apiKey) {
-      alert("⚠️ ไม่พบ API Key!");
+      alert("⚠️ ไม่พบ API Key! กรุณาตั้งค่าในไฟล์ .env.local");
       return;
     }
     setIsGenerating(true);
@@ -428,7 +420,7 @@ source_pony, source_furry, source_cartoon,
     let expandedBg = "simple background";
     let generatedPoses = "dynamic pose, looking at viewer";
     let generatedMood = "(confident:1.1)";
-    let generatedNegative = ""; // 🚀 รับค่าจาก AI สำหรับสิ่งที่ไม่ต้องการ
+    let generatedNegative = "";
 
     try {
       const res = await fetch(
@@ -451,10 +443,14 @@ DO NOT output sentences or paragraphs. Output ONLY flat, comma-separated Danboor
 CRITICAL INSTRUCTIONS PER JSON KEY:
 1. "outfit": Preserve user's exact garments, colors, and materials. DO NOT use underscores (e.g., write "white shirt, long sleeves" INSTEAD OF "white_long_sleeved_shirt"). Break complex outfits into simple modular tags.
   ${isNsfw ? "-> [NSFW MODE]: MUST explicitly describe the physical state of the clothes (e.g., partially unbuttoned, clothes pulled down, torn)." : "-> [SFW MODE]: Enhance with fabric textures (e.g., silk, latex) and high-detail clothing tags."}
-2. "poses": Pick EXACTLY ONE main physical pose to prevent conflicts. Enhance with 2-3 compatible supporting tags (e.g., camera angle, hand gesture, head tilt).
+2. "poses": ${
+                  isNsfw
+                    ? "-> [NSFW MODE]: Translate the user's action deeply, literally, and accurately. Output ALL necessary explicit, interaction, and anatomical Danbooru tags without any limits. Capture every detail of the described action."
+                    : "-> [SFW MODE]: Pick EXACTLY ONE main physical pose to prevent conflicts. Enhance with 2-3 compatible supporting tags (e.g., camera angle, hand gesture, head tilt)."
+                }
 3. "background": ALLOW compound phrases here to maintain environmental context (e.g., "sitting on futuristic office desk", "rainy neon cyberpunk street"). 
 4. "mood": Output facial expressions, cinematic lighting, and atmospheric tags (e.g., confident smile, rim lighting, depth of field).
-5. "negative": Translate the 'Avoid' input into negative Danbooru tags (e.g., skirt, boots, glasses). If 'Avoid' is 'none', output an empty string.
+5. "negative": Translate the 'Avoid' input into negative Danbooru tags (e.g., skirt, boots, glasses). If 'Avoid' is 'none' or empty, output an empty string.
 
 Return ONLY a valid JSON object matching this exact structure: {"outfit": "...", "poses": "...", "mood": "...", "background": "...", "negative": "..."}`,
               },
@@ -471,57 +467,94 @@ Return ONLY a valid JSON object matching this exact structure: {"outfit": "...",
       if (res.ok) {
         const data = await res.json();
         const parsed = JSON.parse(data.choices[0].message.content);
+
+        // 🚀 อัปเกรด: ฟังก์ชันสกัดข้อความแบบฉลาดขึ้น กรองคำว่า none ทิ้ง
         const extractStr = (val: unknown): string => {
-          if (val == null || val === "none") return "";
-          if (typeof val === "string") return val;
-          if (Array.isArray(val)) return val.map((v) => String(v)).join(", ");
-          if (typeof val === "object")
-            return Object.values(val as Record<string, unknown>)
+          if (val == null) return "";
+          let str = "";
+          if (typeof val === "string") str = val;
+          else if (Array.isArray(val))
+            str = val.map((v) => String(v)).join(", ");
+          else if (typeof val === "object")
+            str = Object.values(val as Record<string, unknown>)
               .map((v) => String(v))
               .join(", ");
-          return String(val);
+          else str = String(val);
+
+          str = str.trim();
+          // ป้องกัน AI หลอนตอบคำว่างเปล่ามา
+          if (["none", "n/a", "-", "", "null"].includes(str.toLowerCase()))
+            return "";
+          return str;
         };
+
         expandedOutfit = extractStr(parsed.outfit) || expandedOutfit;
         generatedPoses = extractStr(parsed.poses) || generatedPoses;
         generatedMood = extractStr(parsed.mood) || generatedMood;
         expandedBg = extractStr(parsed.background) || expandedBg;
-        generatedNegative = extractStr(parsed.negative); // 🚀 ดึงค่า Negative
+        generatedNegative = extractStr(parsed.negative);
+      } else {
+        // 🚀 อัปเกรด: ระบบแจ้งเตือนเมื่อ API มีปัญหา
+        const errText = await res.text();
+        console.error("Groq API Error:", errText);
+        alert(
+          `เกิดข้อผิดพลาดจาก API ของ Groq ครับ (${res.status})\nกรุณาลองใหม่อีกครั้ง`,
+        );
+        setIsGenerating(false);
+        return;
       }
     } catch (error) {
-      console.error("Groq API Error:", error);
+      console.error("Fetch Error:", error);
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์ครับ");
+      setIsGenerating(false);
+      return;
     }
 
+    // --- ประกอบ Positive Prompt แบบคลีนๆ ---
     const positiveBlocks = [];
     if (loraTag) positiveBlocks.push(`${loraTag},`);
+
     let baseCharBlock = "score_9, score_8_up, score_7_up, source_anime,";
 
-    if (isNsfw) baseCharBlock += `\n${selections.peopleCount},`;
-    if (charTags) baseCharBlock += `\n${charTags},`;
+    // 🚀 เพิ่มระบบคุมโทนภาพ (Rating System)
+    if (isNsfw) {
+      baseCharBlock += " rating_explicit,"; // โหมด NSFW บังคับให้เป็น 18+
+      baseCharBlock += `\n${selections.peopleCount},`;
+    } else {
+      baseCharBlock += " rating_safe,"; // โหมดปกติ บังคับให้เป็นภาพปลอดภัย
+    }
 
+    if (charTags) baseCharBlock += `\n${charTags},`;
     positiveBlocks.push(baseCharBlock);
 
     if (expandedOutfit)
       positiveBlocks.push(`alternate costume,\n(${expandedOutfit}:1.2),`);
-
-    positiveBlocks.push(`${generatedPoses},\n${generatedMood},`);
-
+    if (generatedPoses) positiveBlocks.push(`${generatedPoses},`);
+    if (generatedMood) positiveBlocks.push(`${generatedMood},`);
     if (expandedBg) positiveBlocks.push(`${expandedBg},`);
 
     positiveBlocks.push(
       `(masterpiece, best quality, highly detailed, intricate details, sharp focus, cinematic lighting, dramatic lighting, soft lighting, volumetric light:1.1)`,
     );
 
-    // 🚀 รวม Negative tags ใหม่เข้ากับ baseNegative
+    // --- ประกอบ Negative Prompt แบบคลีนๆ ---
     let finalNegative = baseNegative;
 
+    // 🚀 สลับแท็กบล็อกตามโหมด
+    if (isNsfw) {
+      finalNegative = `rating_safe, rating_questionable,\n${finalNegative}`;
+    } else {
+      finalNegative = `rating_explicit, rating_questionable,\n${finalNegative}`;
+    }
+
     if (generatedNegative) {
-      finalNegative = `(${generatedNegative}:1.3),\n` + finalNegative;
+      finalNegative = `(${generatedNegative}:1.3),\n${finalNegative}`;
     }
 
     if (isNsfw) {
       if (selections.peopleCount !== "1girl, solo") {
         finalNegative = finalNegative.replace(
-          "multiple girls, multiple boys, group, crowd, 2girls, 3girls, clones, extra characters, background characters, \n",
+          "multiple girls, multiple boys, group, clones, \n",
           "",
         );
       }
@@ -530,9 +563,10 @@ Return ONLY a valid JSON object matching this exact structure: {"outfit": "...",
     }
 
     setPrompts({
-      positive: positiveBlocks.join("\n\n"),
-      negative: finalNegative,
+      positive: positiveBlocks.filter(Boolean).join("\n\n"),
+      negative: finalNegative.trim(),
     });
+
     setIsGenerating(false);
     setIsSuccess(true);
     setTimeout(() => setIsSuccess(false), 3000);
@@ -637,7 +671,6 @@ Return ONLY a valid JSON object matching this exact structure: {"outfit": "...",
             )}
           </div>
 
-          {/* 🚀 แบ่งกล่องใส่ชุด และ กล่องใส่สิ่งที่ไม่ต้องการ ไว้ข้างๆ กัน */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="flex flex-col">
               <label
