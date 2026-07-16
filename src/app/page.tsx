@@ -50,9 +50,7 @@ export default function PromptGenerator() {
 
     // eslint-disable-next-line
     if (savedSelections) setSelections(JSON.parse(savedSelections));
-    // eslint-disable-next-line
     if (savedPrompts) setPrompts(JSON.parse(savedPrompts));
-    // eslint-disable-next-line
     if (savedNsfw) setIsNsfw(JSON.parse(savedNsfw));
 
     setIsLoaded(true);
@@ -389,6 +387,24 @@ source_pony, source_furry, source_cartoon,
     setSelections((prev) => ({ ...prev, [name]: value }));
   };
 
+  // 🧹 ฟังก์ชันล้างข้อมูลทั้งหมด
+  const handleClear = () => {
+    if (window.confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูล Prompt ทั้งหมด?")) {
+      setSelections({
+        character: "",
+        outfit: "",
+        background: "",
+        negativeInput: "",
+        peopleCount: "1girl, solo",
+        posePreset: "",
+        action: "",
+      });
+      setPrompts({
+        positive: "",
+        negative: "",
+      });
+    }
+  };
   const generatePrompt = async () => {
     const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
     if (!apiKey) {
@@ -607,16 +623,27 @@ Return ONLY a valid JSON object matching this exact structure: {"outfit": "...",
             )}
           </h1>
 
-          <button
-            onClick={() => setIsNsfw(!isNsfw)}
-            className={`px-4 py-2 font-bold uppercase tracking-widest border-2 transition-all duration-300 ${
-              isNsfw
-                ? "bg-[#ff003c] text-[#0a0002] border-[#ff003c] hover:bg-transparent hover:text-[#ff003c] shadow-[0_0_15px_#ff003c]"
-                : "bg-transparent text-[#be29ec] border-[#be29ec] hover:bg-[#be29ec] hover:text-[#130013]"
-            }`}
-          >
-            {isNsfw ? "Disable NSFW" : "Enable NSFW"}
-          </button>
+          {/* 🚀 มัดรวมปุ่ม Clear และปุ่ม NSFW ไว้ด้วยกัน */}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleClear}
+              className={`px-4 py-2 font-bold uppercase tracking-widest border-2 transition-all duration-300 bg-transparent ${theme.textMuted} ${theme.borderDim} hover:bg-white/10 hover:${theme.textMain}`}
+              title="ล้างข้อมูลทั้งหมด"
+            >
+              🧹 Clear
+            </button>
+
+            <button
+              onClick={() => setIsNsfw(!isNsfw)}
+              className={`px-4 py-2 font-bold uppercase tracking-widest border-2 transition-all duration-300 ${
+                isNsfw
+                  ? "bg-[#ff003c] text-[#0a0002] border-[#ff003c] hover:bg-transparent hover:text-[#ff003c] shadow-[0_0_15px_#ff003c]"
+                  : "bg-transparent text-[#be29ec] border-[#be29ec] hover:bg-[#be29ec] hover:text-[#130013]"
+              }`}
+            >
+              {isNsfw ? "Disable NSFW" : "Enable NSFW"}
+            </button>
+          </div>
         </div>
 
         <div className="space-y-5 mb-6">
