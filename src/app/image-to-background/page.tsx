@@ -101,7 +101,7 @@ export default function ImageToBackground() {
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: "meta-llama/llama-4-scout-17b-16e-instruct", // ✅ ใช้โมเดล Vision ตัวใหม่ล่าสุดที่ Groq แนะนำ
+            model: "meta-llama/llama-4-scout-17b-16e-instruct",
             messages: [
               {
                 role: "user",

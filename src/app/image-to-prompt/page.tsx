@@ -74,7 +74,7 @@ export default function ImageToPrompt() {
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            // นำชื่อ Model ID มาใส่ตรงนี้ครับ 👇
+            // 🚀 อัปเกรดเป็นโมเดล Vision ของ Llama 3.2 สำหรับวิเคราะห์ภาพโดยเฉพาะ
             model: "meta-llama/llama-4-scout-17b-16e-instruct",
             messages: [
               {
@@ -82,7 +82,16 @@ export default function ImageToPrompt() {
                 content: [
                   {
                     type: "text",
-                    text: "Analyze the clothing in this image and describe it using highly detailed, comma-separated Danbooru-style tags. Focus ONLY on the garments, layers, materials (e.g., latex, silk, leather), accessories, and colors. DO NOT describe the background, the person's face, or pose. Return ONLY the comma-separated tags in lowercase, with no additional text.",
+                    // 🚀 อัปเกรด Prompt ให้ฉลาดและเข้าใจสไตล์ของ Pony SDXL
+                    text: `You are an expert Danbooru tagger specifically tailored for the SDXL Pony model. Analyze the clothing, footwear, and accessories in this image.
+
+CRITICAL RULES FOR PONY MODEL:
+1. NO UNDERSCORES: You MUST use spaces instead of underscores (e.g., output "white shirt", NEVER "white_shirt").
+2. MODULAR TAGS: Break complex outfits into simple, individual tags (e.g., "black dress", "thigh boots", "choker").
+3. MATERIALS & STATES: Explicitly include fabric types (e.g., latex, leather, silk, denim, spandex) and physical states (e.g., glossy, tight, torn, unbuttoned, see-through).
+4. ISOLATION: Focus ONLY on garments. Do NOT describe the background, the character's face, hair, or pose.
+
+Return ONLY a flat, comma-separated list of lowercase tags. Do not include sentences, explanations, or bullet points.`,
                   },
                   {
                     type: "image_url",
@@ -93,16 +102,20 @@ export default function ImageToPrompt() {
                 ],
               },
             ],
-            temperature: 0.2,
+            temperature: 0.2, // ใช้ค่าต่ำเพื่อให้ AI โฟกัสกับสิ่งที่เห็นจริงๆ ไม่มโนเพิ่ม
           }),
         },
       );
 
       if (res.ok) {
         const data = await res.json();
-        setResultTags(data.choices[0].message.content.trim());
+        let extractedTags = data.choices[0].message.content.trim();
+
+        // 🚀 Failsafe: กรอง Underscore และการขึ้นบรรทัดใหม่ทิ้ง เผื่อ AI หลอน
+        extractedTags = extractedTags.replace(/_/g, " ").replace(/\n/g, ", ");
+
+        setResultTags(extractedTags);
       } else {
-        // อัปเดตให้แสดง Error ตรงๆ จากเซิร์ฟเวอร์ จะได้รู้สาเหตุชัดเจน
         const errorData = await res.json();
         console.error("API Error:", errorData);
         alert(`⚠️ API Error: ${errorData.error?.message || "Unknown error"}`);
