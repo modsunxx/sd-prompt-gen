@@ -158,7 +158,7 @@ export default function PromptGenerator() {
       id: "kafka",
       label: "Kafka",
       lora: "<lora:kafka_pony:0.75>",
-      tags: "kafka (honkai: star rail), 1girl, solo, beautiful detailed face, purple hair, sunglasses on head, red eyes, long hair, black dress",
+      tags: "kafka (honkai: star rail), 1girl, solo, beautiful detailed face, purple hair, sunglasses on head, purple eyes, long hair, black dress",
     },
     {
       id: "kurashiki_reina",
@@ -345,6 +345,7 @@ export default function PromptGenerator() {
   ];
 
   const baseNegative = `score_6, score_5, score_4, worst quality, low quality, normal quality, 
+3d, render, realistic, cg,
 (extra legs, extra limbs, fused anatomy:1.2), 
 (bad hands, poorly drawn face:1.2), 
 multiple girls, multiple boys, group, clones, 
