@@ -406,6 +406,7 @@ source_pony, source_furry, source_cartoon,
       });
     }
   };
+
   const generatePrompt = async () => {
     const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
     if (!apiKey) {
@@ -965,7 +966,7 @@ Return ONLY a valid JSON object matching this exact structure: {"outfit": "...",
                   <span
                     className={`text-white ${theme.bgCard} p-1.5 border ${theme.borderDim} text-center w-full`}
                   >
-                    DPM++ 2M SDE Karras
+                    Euler a (Automatic)
                   </span>
                 </li>
                 <li className="flex justify-between items-center">
