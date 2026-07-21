@@ -1,64 +1,40 @@
 "use client";
 
-import { useState, ChangeEvent } from "react";
-import { Open_Sans } from "next/font/google";
+import { useState } from "react";
 import Navbar from "../../components/Navbar";
-import Image from "next/image"; // 🚀 นำเข้า Image component ของ Next.js
-
-const openSans = Open_Sans({
-  subsets: ["latin"],
-  weight: ["300", "400", "600", "700", "800"],
-});
 
 export default function ImageToBackground() {
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [image, setImage] = useState<string | null>(null);
   const [resultTags, setResultTags] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const theme = {
-    bgApp: "bg-[#130013]",
-    bgCard: "bg-[#2a002a]",
-    borderMain: "border-[#be29ec]",
-    borderDim: "border-[#800080]",
-    textMain: "text-[#efbbff]",
-    textMuted: "text-[#d896ff]",
-    bgInput: "bg-[#1a001a]",
-    accent: "bg-[#be29ec]",
-    accentHover: "hover:bg-[#d896ff]",
-    textDark: "text-[#130013]",
-    glow: "shadow-2xl",
-  };
-
-  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  // ฟังก์ชันย่อขนาดภาพก่อนส่ง เพื่อป้องกัน Error: Payload Too Large
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setResultTags("");
-    }
-  };
-
-  // 🚀 ย่อรูปและบีบอัดให้ไม่เกิน 512px ก่อนส่ง เพื่อแก้ปัญหา Payload Too Large
-  const convertToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        // ใช้ window.Image เพื่อไม่ให้ชนกับ Component Image ของ Next.js
+      reader.onloadend = () => {
         const img = new window.Image();
+        img.src = reader.result as string;
         img.onload = () => {
+          // สร้าง Canvas เพื่อย่อขนาดภาพ
           const canvas = document.createElement("canvas");
-          let { width, height } = img;
-          const MAX_DIMENSION = 512; // 🚀 จำกัดขนาดไว้ที่ 512px
+          let width = img.width;
+          let height = img.height;
 
-          if (width > height && width > MAX_DIMENSION) {
-            height = Math.round((height * MAX_DIMENSION) / width);
-            width = MAX_DIMENSION;
-          } else if (height > MAX_DIMENSION) {
-            width = Math.round((width * MAX_DIMENSION) / height);
-            height = MAX_DIMENSION;
+          // กำหนดขนาดสูงสุดที่ 800px
+          const MAX_SIZE = 800;
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height *= MAX_SIZE / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height;
+              height = MAX_SIZE;
+            }
           }
 
           canvas.width = width;
@@ -66,20 +42,18 @@ export default function ImageToBackground() {
           const ctx = canvas.getContext("2d");
           ctx?.drawImage(img, 0, 0, width, height);
 
-          // แปลงกลับเป็น Base64 แบบ JPEG Quality 70% ให้เบาที่สุด
-          resolve(canvas.toDataURL("image/jpeg", 0.7));
+          // แปลงกลับเป็น Base64 แบบ JPEG พร้อมบีบอัดคุณภาพเหลือ 70%
+          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.7);
+          setImage(compressedBase64);
+          setResultTags(""); // รีเซ็ตผลลัพธ์เก่าเมื่ออัปโหลดรูปใหม่
         };
-        img.src = event.target?.result as string;
       };
-      reader.onerror = (error) => reject(error);
-    });
+      reader.readAsDataURL(file);
+    }
   };
 
-  const extractBackground = async () => {
-    if (!imageFile) {
-      alert("กรุณาอัปโหลดรูปภาพก่อนครับ!");
-      return;
-    }
+  const analyzeImage = async () => {
+    if (!image) return;
 
     const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
     if (!apiKey) {
@@ -87,11 +61,10 @@ export default function ImageToBackground() {
       return;
     }
 
-    setIsGenerating(true);
+    setIsAnalyzing(true);
+    setResultTags("");
 
     try {
-      const base64Image = await convertToBase64(imageFile);
-
       const res = await fetch(
         "https://api.groq.com/openai/v1/chat/completions",
         {
@@ -101,65 +74,75 @@ export default function ImageToBackground() {
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: "meta-llama/llama-4-scout-17b-16e-instruct",
+            // 🚀 ใช้โมเดล Qwen ตัวเดียวกับ Outfit
+            model: "qwen/qwen3.6-27b",
             messages: [
               {
                 role: "user",
                 content: [
                   {
                     type: "text",
-                    text: `You are an expert Stable Diffusion prompt engineer specializing in environmental and background Danbooru tags.
-Your ONLY task is to analyze the uploaded image and extract the background, environment, lighting, and atmosphere tags.
+                    // 🚀 เปลี่ยน Prompt ให้เจาะจงเฉพาะฉากหลัง (Background & Environment)
+                    text: `You are an expert Danbooru tagger specifically tailored for the SDXL Pony model. Analyze the background, environment, scenery, and lighting in this image.
 
-CRITICAL RULES:
-1. IGNORE all characters, people, clothing, poses, and anatomy. Focus STRICTLY on the world around them.
-2. Output ONLY a flat, comma-separated string of Danbooru tags. DO NOT write sentences or any introductory text.
-3. Categorize your extraction mentally into: Location, Lighting & Time, Objects & Architecture, and Atmosphere/Camera.
+CRITICAL RULES FOR PONY MODEL:
+1. NO UNDERSCORES: You MUST use spaces instead of underscores (e.g., output "blue sky", NEVER "blue_sky").
+2. MODULAR TAGS: Break complex scenes into simple, individual tags (e.g., "indoors", "classroom", "sunlight", "desk").
+3. ENVIRONMENT & LIGHTING: Explicitly include time of day, weather, lighting types (e.g., cinematic lighting, neon lights, day, night, raining, depth of field) and specific architectural or natural elements.
+4. ISOLATION: Focus ONLY on the background and environment. Do NOT describe any characters, people, clothing, or poses.
 
-Example valid output: outdoors, night, cyberpunk city, neon lights, raining, wet street, reflections, blurry background, bokeh`,
+DO NOT output your thinking process. Return ONLY a flat, comma-separated list of lowercase tags. Do not include sentences, explanations, or bullet points.`,
                   },
                   {
                     type: "image_url",
                     image_url: {
-                      url: base64Image,
+                      url: image,
                     },
                   },
                 ],
               },
             ],
             temperature: 0.2,
-            max_tokens: 1024, // 🚀 เพิ่มลิมิตข้อความตอบกลับ
           }),
         },
       );
 
       if (res.ok) {
         const data = await res.json();
-        const extracted = data.choices[0].message.content.trim();
-        const cleanTags = extracted
-          .replace(/^Here are the tags:|^Tags:/gi, "")
-          .trim();
-        setResultTags(cleanTags);
-      } else {
-        // 🚀 ดักจับ Error ให้อ่านเป็น Text ก่อน จะได้รู้ว่าเกิดอะไรขึ้น
-        const errorText = await res.text();
-        console.error("🔥 Raw API Error:", errorText);
+        let extractedTags = data.choices[0].message.content;
 
-        try {
-          const errObj = JSON.parse(errorText);
-          alert(
-            `API Error: ${errObj.error?.message || "ดูรายละเอียดใน Console"}`,
-          );
-        } catch {
-          alert(`เกิดข้อผิดพลาดรหัส ${res.status} ลองเช็ค Console (F12) ครับ`);
+        // 🚀 1. หั่นเอากระบวนการคิด <think>...</think> ของ Qwen ทิ้งไป
+        extractedTags = extractedTags
+          .replace(/<think>[\s\S]*?<\/think>/gi, "")
+          .trim();
+
+        // 🚀 2. ถ้ามันดื้อพิมพ์ <think> มาแต่ลืมปิดแท็ก ให้เอาข้อความหลัง </think> (ถ้ามี)
+        if (extractedTags.includes("</think>")) {
+          extractedTags =
+            extractedTags.split("</think>").pop() || extractedTags;
         }
+
+        // 🚀 3. Failsafe: กรอง Underscore และการขึ้นบรรทัดใหม่ทิ้ง
+        extractedTags = extractedTags.replace(/_/g, " ").replace(/\n/g, ", ");
+
+        // 🚀 4. คลีนเครื่องหมายลูกน้ำที่อาจจะเบิ้ลกัน
+        extractedTags = extractedTags
+          .replace(/,\s*,/g, ",")
+          .replace(/^,|,$/g, "")
+          .trim();
+
+        setResultTags(extractedTags);
+      } else {
+        const errorData = await res.json();
+        console.error("API Error:", errorData);
+        alert(`⚠️ API Error: ${errorData.error?.message || "Unknown error"}`);
       }
     } catch (error) {
-      console.error("Error generating background tags:", error);
-      alert("เกิดข้อผิดพลาดในการดึงข้อมูลครับ");
-    } finally {
-      setIsGenerating(false);
+      console.error("Vision API Error:", error);
+      alert("⚠️ เชื่อมต่อ API ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต");
     }
+
+    setIsAnalyzing(false);
   };
 
   const copyToClipboard = () => {
@@ -170,105 +153,70 @@ Example valid output: outdoors, night, cyberpunk city, neon lights, raining, wet
   };
 
   return (
-    <div
-      className={`min-h-screen ${theme.bgApp} transition-colors duration-500 text-[#efbbff] ${openSans.className} pb-16`}
-    >
-      <Navbar isNsfw={false} />
+    <div className="min-h-screen bg-[#130013] text-[#efbbff] pb-16 font-sans">
+      <Navbar />
 
-      <div
-        className={`max-w-4xl mx-auto mt-8 ${theme.bgCard} rounded-none border-2 ${theme.borderMain} ${theme.glow} p-6`}
-      >
-        <div className={`mb-6 border-b-2 ${theme.borderMain} pb-4`}>
-          <h1
-            className={`text-2xl font-bold ${theme.textMain} uppercase tracking-wide flex items-center`}
-          >
-            📸 Image to Background Tags
-          </h1>
-          <p className={`text-sm ${theme.textMuted} mt-2`}>
-            อัปโหลดภาพที่มีฉากหลังสวยๆ แล้วให้ AI ดึงเฉพาะแสง เงา
-            และบรรยากาศออกมาเป็น Prompt
-          </p>
-        </div>
+      <div className="max-w-4xl mx-auto mt-8 bg-[#2a002a] rounded-none border-2 border-[#be29ec] shadow-2xl p-6">
+        <h1 className="text-2xl font-bold mb-6 text-[#efbbff] border-b-2 border-[#be29ec] pb-2 uppercase tracking-wide">
+          🖼️ Image to Background Details
+        </h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          <div className="flex flex-col">
-            <label
-              className={`mb-2 text-sm font-semibold ${theme.textMuted} uppercase tracking-wider`}
-            >
-              Upload Reference Image
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* ฝั่งอัปโหลดรูป */}
+          <div className="flex flex-col gap-4">
+            <label className="text-sm font-semibold text-[#d896ff] uppercase tracking-wider">
+              1. Upload Reference Image
             </label>
-            <div
-              className={`relative w-full h-80 border-2 border-dashed ${theme.borderDim} ${theme.bgInput} flex items-center justify-center overflow-hidden hover:${theme.borderMain} transition-colors`}
-            >
+            <div className="relative w-full h-80 border-2 border-dashed border-[#be29ec] bg-[#1a001a] flex justify-center items-center overflow-hidden hover:bg-[#2a002a] transition cursor-pointer">
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleImageUpload}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
-              {previewUrl ? (
-                // 🚀 อัปเกรดมาใช้ Image Component ของ Next.js แทน <img> ธรรมดา
-                <Image
-                  src={previewUrl}
+              {image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={image}
                   alt="Preview"
-                  fill
-                  className="object-contain"
-                  unoptimized
+                  className="w-full h-full object-contain"
                 />
               ) : (
-                <div className="text-center p-4">
-                  <span className="text-4xl mb-2 block">🖼️</span>
-                  <span
-                    className={`${theme.textMuted} text-sm font-bold uppercase`}
-                  >
-                    Click or Drag Image Here
-                  </span>
-                </div>
+                <span className="text-[#800080] font-bold uppercase tracking-widest text-center px-4">
+                  Click or Drop Image Here
+                </span>
               )}
-            </div>
-          </div>
-
-          <div className="flex flex-col justify-between">
-            <div className="flex-1 flex flex-col mb-4">
-              <div className="flex justify-between items-end mb-2">
-                <label
-                  className={`text-sm font-bold ${theme.textDark} ${theme.accent} inline-block px-3 py-1 uppercase tracking-wider`}
-                >
-                  Background Tags
-                </label>
-                <button
-                  onClick={copyToClipboard}
-                  disabled={!resultTags}
-                  className={`text-xs font-bold ${theme.textMain} border ${theme.borderMain} ${theme.accentHover} hover:${theme.textDark} px-3 py-1 transition-all uppercase disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {copied ? "Copied!" : "Copy"}
-                </button>
-              </div>
-              <textarea
-                readOnly
-                value={resultTags}
-                placeholder="Background tags will appear here..."
-                className={`w-full flex-1 p-4 rounded-none ${theme.bgInput} border-2 ${theme.borderMain} text-sm font-mono ${theme.textMain} focus:outline-none resize-none leading-relaxed min-h-40`}
-              />
             </div>
 
             <button
-              onClick={extractBackground}
-              disabled={!imageFile || isGenerating}
-              className={`w-full font-bold py-3 px-4 rounded-none border-2 transition-all duration-300 uppercase tracking-widest flex justify-center items-center disabled:opacity-70 disabled:cursor-not-allowed ${
-                isGenerating
-                  ? `${theme.bgInput} ${theme.textMain} border-dashed ${theme.borderDim}`
-                  : `${theme.accent} ${theme.accentHover} ${theme.textDark} border-transparent hover:${theme.borderMain}`
-              }`}
+              onClick={analyzeImage}
+              disabled={!image || isAnalyzing}
+              className="w-full bg-[#be29ec] hover:bg-[#d896ff] text-[#130013] font-bold py-3 px-4 rounded-none border-2 border-[#d896ff] transition disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest"
             >
-              {isGenerating ? (
-                <span className="flex items-center gap-2 animate-pulse">
-                  ⏳ Extracting Environment...
-                </span>
-              ) : (
-                "Extract Background"
-              )}
+              {isAnalyzing ? "Analyzing Vision..." : "2. Analyze Background"}
             </button>
+          </div>
+
+          {/* ฝั่งแสดงผลลัพธ์ */}
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-between items-end">
+              <label className="text-sm font-bold text-[#130013] bg-[#be29ec] inline-block px-3 py-1 uppercase tracking-wider">
+                Background Tags Output
+              </label>
+              <button
+                onClick={copyToClipboard}
+                disabled={!resultTags}
+                className="text-xs font-bold text-[#efbbff] border border-[#be29ec] hover:bg-[#be29ec] hover:text-[#130013] px-3 py-1 transition uppercase disabled:opacity-50"
+              >
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+            <textarea
+              readOnly
+              value={resultTags}
+              className="w-full h-83.75 p-4 rounded-none bg-[#1a001a] border-2 border-[#be29ec] text-sm font-mono text-[#efbbff] focus:outline-none focus:border-[#d896ff] resize-none leading-relaxed"
+              placeholder="Your extracted background tags will appear here. Copy and paste them into the Prompt Generator..."
+            />
           </div>
         </div>
       </div>

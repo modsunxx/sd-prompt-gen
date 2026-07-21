@@ -74,15 +74,14 @@ export default function ImageToPrompt() {
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            // 🚀 อัปเกรดเป็นโมเดล Vision ของ Llama 3.2 สำหรับวิเคราะห์ภาพโดยเฉพาะ
-            model: "meta-llama/llama-4-scout-17b-16e-instruct",
+            model: "qwen/qwen3.6-27b",
             messages: [
               {
                 role: "user",
                 content: [
                   {
                     type: "text",
-                    // 🚀 อัปเกรด Prompt ให้ฉลาดและเข้าใจสไตล์ของ Pony SDXL
+                    // 🚀 อัปเกรด Prompt ดักทางไม่ให้ Qwen บ่น
                     text: `You are an expert Danbooru tagger specifically tailored for the SDXL Pony model. Analyze the clothing, footwear, and accessories in this image.
 
 CRITICAL RULES FOR PONY MODEL:
@@ -91,7 +90,7 @@ CRITICAL RULES FOR PONY MODEL:
 3. MATERIALS & STATES: Explicitly include fabric types (e.g., latex, leather, silk, denim, spandex) and physical states (e.g., glossy, tight, torn, unbuttoned, see-through).
 4. ISOLATION: Focus ONLY on garments. Do NOT describe the background, the character's face, hair, or pose.
 
-Return ONLY a flat, comma-separated list of lowercase tags. Do not include sentences, explanations, or bullet points.`,
+DO NOT output your thinking process. Return ONLY a flat, comma-separated list of lowercase tags. Do not include sentences, explanations, or bullet points.`,
                   },
                   {
                     type: "image_url",
@@ -109,10 +108,27 @@ Return ONLY a flat, comma-separated list of lowercase tags. Do not include sente
 
       if (res.ok) {
         const data = await res.json();
-        let extractedTags = data.choices[0].message.content.trim();
+        let extractedTags = data.choices[0].message.content;
 
-        // 🚀 Failsafe: กรอง Underscore และการขึ้นบรรทัดใหม่ทิ้ง เผื่อ AI หลอน
+        // 🚀 1. หั่นเอากระบวนการคิด <think>...</think> ของ Qwen ทิ้งไป
+        extractedTags = extractedTags
+          .replace(/<think>[\s\S]*?<\/think>/gi, "")
+          .trim();
+
+        // 🚀 2. ถ้ามันดื้อพิมพ์ <think> มาแต่ลืมปิดแท็ก ให้เอาข้อความหลัง </think> (ถ้ามี)
+        if (extractedTags.includes("</think>")) {
+          extractedTags =
+            extractedTags.split("</think>").pop() || extractedTags;
+        }
+
+        // 🚀 3. Failsafe: กรอง Underscore และการขึ้นบรรทัดใหม่ทิ้ง เผื่อ AI หลอน
         extractedTags = extractedTags.replace(/_/g, " ").replace(/\n/g, ", ");
+
+        // 🚀 4. คลีนเครื่องหมายลูกน้ำที่อาจจะเบิ้ลกัน
+        extractedTags = extractedTags
+          .replace(/,\s*,/g, ",")
+          .replace(/^,|,$/g, "")
+          .trim();
 
         setResultTags(extractedTags);
       } else {
