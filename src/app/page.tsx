@@ -468,7 +468,7 @@ CRITICAL INSTRUCTIONS PER JSON KEY:
                 }
 3. "background": ALLOW compound phrases here to maintain environmental context (e.g., "sitting on futuristic office desk", "rainy neon cyberpunk street"). 
 4. "mood": Output facial expressions, cinematic lighting, and atmospheric tags (e.g., confident smile, rim lighting, depth of field).
-5. "negative": Translate the 'Avoid' input into negative Danbooru tags (e.g., skirt, boots, glasses). If 'Avoid' is 'none' or empty, output an empty string.
+5. "negative": Translate the 'Avoid' input into flat Danbooru tags. CRITICAL: NEVER use the word "no" or "without" before the items (e.g., output "skirt, boots, glasses", NEVER "no skirt, no boots"). If 'Avoid' is 'none' or empty, output an empty string.
 
 Return ONLY a valid JSON object matching this exact structure: {"outfit": "...", "poses": "...", "mood": "...", "background": "...", "negative": "..."}`,
               },
